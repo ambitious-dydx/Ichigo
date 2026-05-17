@@ -2,9 +2,12 @@ import { randomUUID } from "node:crypto";
 import { getMode, modes, type ModeId } from "../modes";
 import { classifyCommentAlignment, suggestModeFromContent } from "./mode-alignment";
 import { getDb } from "./db";
-import { createAvatarFallback } from "./security";
+import { DEMO_ACCOUNT } from "./seed";
+import { createAvatarFallback, hashPassword } from "./security";
 import type {
   AlignmentResult,
+  AppHomeView,
+  AuthSessionView,
   CommentView,
   FeedPost,
   NotificationView,
@@ -37,11 +40,53 @@ function normalizeDate(value: string) {
   return new Date(value).toISOString();
 }
 
+function normalizeIdentifier(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function createUsernameBase(value: string) {
+  const compact = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!compact) {
+    return "ichigo";
+  }
+
+  if (compact.length >= 3) {
+    return compact.slice(0, 24);
+  }
+
+  return `${compact}ichigo`.slice(0, 24);
+}
+
+function buildUniqueUsername(seed: string) {
+  const base = createUsernameBase(seed);
+
+  if (!getUserByUsername(base)) {
+    return base;
+  }
+
+  for (let index = 2; index <= 999; index += 1) {
+    const suffix = `_${index}`;
+    const candidate = `${base.slice(0, Math.max(3, 24 - suffix.length))}${suffix}`;
+
+    if (!getUserByUsername(candidate)) {
+      return candidate;
+    }
+  }
+
+  return `ichigo_${randomUUID().replace(/-/g, "").slice(0, 10)}`.slice(0, 24);
+}
+
 function mapUser(row: Record<string, unknown>): SessionUser {
   return {
     id: String(row.id),
     username: String(row.username),
     email: String(row.email),
+    emailVerifiedAt: row.email_verified_at ? normalizeDate(String(row.email_verified_at)) : null,
     bio: String(row.bio ?? ""),
     avatarUrl: row.avatar_url ? String(row.avatar_url) : null,
     reputationScore: Number(row.reputation_score ?? 0),
@@ -102,6 +147,20 @@ function mapComment(row: Record<string, unknown>): CommentView {
   };
 }
 
+function mapAuthSession(
+  row: Record<string, unknown>,
+  currentSessionId?: string | null,
+): AuthSessionView {
+  return {
+    id: String(row.id),
+    userAgent: row.user_agent ? String(row.user_agent) : null,
+    createdAt: normalizeDate(String(row.created_at)),
+    lastSeenAt: normalizeDate(String(row.last_seen_at ?? row.created_at)),
+    expiresAt: normalizeDate(String(row.expires_at)),
+    isCurrent: currentSessionId ? String(row.id) === currentSessionId : false,
+  };
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -112,8 +171,8 @@ export function listModes() {
 
 export function getSeedCredentials() {
   return {
-    email: "daniel@ichigo.local",
-    password: "ichigo-demo",
+    email: DEMO_ACCOUNT.email,
+    password: DEMO_ACCOUNT.password,
   };
 }
 
@@ -121,6 +180,8 @@ export function createUserRecord(input: {
   username: string;
   email: string;
   passwordHash: string;
+  avatarUrl?: string | null;
+  emailVerifiedAt?: string | null;
 }) {
   const db = getDb();
   const id = `user_${randomUUID()}`;
@@ -128,14 +189,16 @@ export function createUserRecord(input: {
 
   db.prepare(`
     INSERT INTO users (
-      id, username, email, password_hash, avatar_url, bio, reputation_score, role, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, username, email, password_hash, password_changed_at, email_verified_at, avatar_url, bio, reputation_score, role, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     input.username,
-    input.email.toLowerCase(),
+    normalizeIdentifier(input.email),
     input.passwordHash,
-    createAvatarFallback(input.username),
+    timestamp,
+    input.emailVerifiedAt ?? null,
+    input.avatarUrl ?? createAvatarFallback(input.username),
     "",
     0,
     "user",
@@ -150,7 +213,16 @@ export function getUserByEmail(email: string) {
   const db = getDb();
   const row = db
     .prepare("SELECT * FROM users WHERE email = ?")
-    .get(email.toLowerCase()) as Record<string, unknown> | undefined;
+    .get(normalizeIdentifier(email)) as Record<string, unknown> | undefined;
+
+  return row ? mapUser(row) : null;
+}
+
+export function getUserByUsername(username: string) {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT * FROM users WHERE LOWER(username) = ?")
+    .get(normalizeIdentifier(username)) as Record<string, unknown> | undefined;
 
   return row ? mapUser(row) : null;
 }
@@ -159,7 +231,7 @@ export function getUserAuthByEmail(email: string) {
   const db = getDb();
   const row = db
     .prepare("SELECT * FROM users WHERE email = ?")
-    .get(email.toLowerCase()) as Record<string, unknown> | undefined;
+    .get(normalizeIdentifier(email)) as Record<string, unknown> | undefined;
 
   if (!row) {
     return null;
@@ -171,6 +243,32 @@ export function getUserAuthByEmail(email: string) {
   };
 }
 
+export function getUserAuthByIdentifier(identifier: string) {
+  const db = getDb();
+  const normalized = normalizeIdentifier(identifier);
+  const row = db
+    .prepare("SELECT * FROM users WHERE email = ? OR LOWER(username) = ? LIMIT 1")
+    .get(normalized, normalized) as Record<string, unknown> | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    user: mapUser(row),
+    passwordHash: String(row.password_hash),
+  };
+}
+
+export function getUserPasswordHashById(userId: string) {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT password_hash FROM users WHERE id = ?")
+    .get(userId) as { password_hash: string } | undefined;
+
+  return row ? row.password_hash : null;
+}
+
 export function getUserById(id: string) {
   const db = getDb();
   const row = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
@@ -180,38 +278,271 @@ export function getUserById(id: string) {
   return row ? mapUser(row) : null;
 }
 
+export function markUserEmailVerified(userId: string, verifiedAt: string) {
+  const db = getDb();
+  db.prepare("UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?").run(
+    verifiedAt,
+    nowIso(),
+    userId,
+  );
+
+  return getUserById(userId);
+}
+
+export function updateUserAvatar(userId: string, avatarUrl: string | null) {
+  if (!avatarUrl) {
+    return getUserById(userId);
+  }
+
+  const db = getDb();
+  db.prepare("UPDATE users SET avatar_url = ?, updated_at = ? WHERE id = ?").run(
+    avatarUrl,
+    nowIso(),
+    userId,
+  );
+
+  return getUserById(userId);
+}
+
+export function getUserByAuthAccount(provider: string, providerAccountId: string) {
+  const db = getDb();
+  const row = db
+    .prepare(`
+      SELECT users.*
+      FROM auth_accounts
+      JOIN users ON users.id = auth_accounts.user_id
+      WHERE auth_accounts.provider = ? AND auth_accounts.provider_account_id = ?
+      LIMIT 1
+    `)
+    .get(provider, providerAccountId) as Record<string, unknown> | undefined;
+
+  return row ? mapUser(row) : null;
+}
+
+export function linkAuthAccountRecord(input: {
+  userId: string;
+  provider: string;
+  providerAccountId: string;
+  providerEmail?: string | null;
+}) {
+  const db = getDb();
+  const timestamp = nowIso();
+
+  db.prepare(`
+    INSERT INTO auth_accounts (
+      id, user_id, provider, provider_account_id, provider_email, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(provider, provider_account_id)
+    DO UPDATE SET
+      user_id = excluded.user_id,
+      provider_email = excluded.provider_email,
+      updated_at = excluded.updated_at
+  `).run(
+    `account_${randomUUID()}`,
+    input.userId,
+    input.provider,
+    input.providerAccountId,
+    input.providerEmail ? normalizeIdentifier(input.providerEmail) : null,
+    timestamp,
+    timestamp,
+  );
+}
+
+export function findOrCreateGoogleUser(input: {
+  googleAccountId: string;
+  email: string;
+  name: string;
+  avatarUrl?: string | null;
+  emailVerifiedAt?: string | null;
+}) {
+  const existingAccountUser = getUserByAuthAccount("google", input.googleAccountId);
+
+  if (existingAccountUser) {
+    if (input.emailVerifiedAt && !existingAccountUser.emailVerifiedAt) {
+      markUserEmailVerified(existingAccountUser.id, input.emailVerifiedAt);
+    }
+
+    if (input.avatarUrl) {
+      updateUserAvatar(existingAccountUser.id, input.avatarUrl);
+    }
+
+    return getUserById(existingAccountUser.id);
+  }
+
+  const existingEmailUser = getUserByEmail(input.email);
+
+  if (existingEmailUser) {
+    linkAuthAccountRecord({
+      userId: existingEmailUser.id,
+      provider: "google",
+      providerAccountId: input.googleAccountId,
+      providerEmail: input.email,
+    });
+
+    if (input.emailVerifiedAt && !existingEmailUser.emailVerifiedAt) {
+      markUserEmailVerified(existingEmailUser.id, input.emailVerifiedAt);
+    }
+
+    if (input.avatarUrl) {
+      updateUserAvatar(existingEmailUser.id, input.avatarUrl);
+    }
+
+    return getUserById(existingEmailUser.id);
+  }
+
+  const username = buildUniqueUsername(input.name || input.email.split("@")[0] || "ichigo");
+  const user = createUserRecord({
+    username,
+    email: input.email,
+    passwordHash: hashPassword(randomUUID()),
+    avatarUrl: input.avatarUrl ?? createAvatarFallback(username),
+    emailVerifiedAt: input.emailVerifiedAt ?? null,
+  });
+
+  if (!user) {
+    return null;
+  }
+
+  linkAuthAccountRecord({
+    userId: user.id,
+    provider: "google",
+    providerAccountId: input.googleAccountId,
+    providerEmail: input.email,
+  });
+
+  return getUserById(user.id);
+}
+
+export function updateUserAccountRecord(input: {
+  userId: string;
+  username: string;
+  email: string;
+  bio: string;
+}) {
+  const db = getDb();
+  db.prepare(
+    "UPDATE users SET username = ?, email = ?, bio = ?, updated_at = ? WHERE id = ?",
+  ).run(input.username, normalizeIdentifier(input.email), input.bio, nowIso(), input.userId);
+
+  return getUserById(input.userId);
+}
+
+export function updateUserPasswordHash(userId: string, passwordHash: string) {
+  const db = getDb();
+  const timestamp = nowIso();
+
+  db.prepare(
+    "UPDATE users SET password_hash = ?, password_changed_at = ?, updated_at = ? WHERE id = ?",
+  ).run(passwordHash, timestamp, timestamp, userId);
+}
+
 export function createSessionRecord(input: {
   userId: string;
   tokenHash: string;
+  userAgent: string | null;
+  lastSeenAt: string;
   expiresAt: string;
 }) {
   const db = getDb();
   const sessionId = `session_${randomUUID()}`;
 
   db.prepare(`
-    INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(sessionId, input.userId, input.tokenHash, input.expiresAt, nowIso());
+    INSERT INTO sessions (id, user_id, token_hash, user_agent, last_seen_at, revoked_at, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+  `).run(
+    sessionId,
+    input.userId,
+    input.tokenHash,
+    input.userAgent,
+    input.lastSeenAt,
+    input.expiresAt,
+    nowIso(),
+  );
+
+  return sessionId;
 }
 
-export function getSessionUserByTokenHash(tokenHash: string) {
+export function getSessionWithUserByTokenHash(tokenHash: string) {
   const db = getDb();
   const row = db
     .prepare(`
-      SELECT users.*
+      SELECT sessions.id AS session_id, sessions.user_agent, sessions.last_seen_at, sessions.expires_at, users.*
       FROM sessions
       JOIN users ON users.id = sessions.user_id
-      WHERE sessions.token_hash = ? AND sessions.expires_at > ?
+      WHERE sessions.token_hash = ?
+        AND sessions.revoked_at IS NULL
+        AND sessions.expires_at > ?
       LIMIT 1
     `)
     .get(tokenHash, nowIso()) as Record<string, unknown> | undefined;
 
-  return row ? mapUser(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  return {
+    sessionId: String(row.session_id),
+    expiresAt: normalizeDate(String(row.expires_at)),
+    lastSeenAt: normalizeDate(String(row.last_seen_at ?? row.created_at)),
+    userAgent: row.user_agent ? String(row.user_agent) : null,
+    user: mapUser(row),
+  };
+}
+
+export function getSessionUserByTokenHash(tokenHash: string) {
+  const session = getSessionWithUserByTokenHash(tokenHash);
+  return session ? session.user : null;
+}
+
+export function touchSessionByTokenHash(input: {
+  tokenHash: string;
+  userAgent: string | null;
+  lastSeenAt: string;
+  expiresAt: string;
+}) {
+  const db = getDb();
+  db.prepare(`
+    UPDATE sessions
+    SET user_agent = ?, last_seen_at = ?, expires_at = ?
+    WHERE token_hash = ? AND revoked_at IS NULL
+  `).run(input.userAgent, input.lastSeenAt, input.expiresAt, input.tokenHash);
 }
 
 export function deleteSessionByTokenHash(tokenHash: string) {
   const db = getDb();
   db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash);
+}
+
+export function listUserSessions(userId: string, currentSessionId?: string | null) {
+  const db = getDb();
+  const rows = db
+    .prepare(`
+      SELECT id, user_agent, created_at, last_seen_at, expires_at
+      FROM sessions
+      WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?
+      ORDER BY last_seen_at DESC, created_at DESC
+    `)
+    .all(userId, nowIso()) as Record<string, unknown>[];
+
+  return rows.map((row) => mapAuthSession(row, currentSessionId));
+}
+
+export function revokeSessionById(userId: string, sessionId: string) {
+  const db = getDb();
+  db.prepare("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND id = ?").run(
+    nowIso(),
+    userId,
+    sessionId,
+  );
+}
+
+export function revokeOtherSessions(userId: string, currentSessionId: string) {
+  const db = getDb();
+  db.prepare("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND id != ?").run(
+    nowIso(),
+    userId,
+    currentSessionId,
+  );
 }
 
 export function listFeedPosts(currentUserId?: string | null) {
@@ -258,6 +589,40 @@ export function listFeedPosts(currentUserId?: string | null) {
       ORDER BY posts.created_at DESC
     `)
     .all(...(currentUserId ? [currentUserId] : [])) as Record<string, unknown>[];
+
+  return rows.map(mapFeedPost);
+}
+
+export function listPostsByUser(userId: string) {
+  const db = getDb();
+  const rows = db
+    .prepare(`
+      SELECT
+        posts.*,
+        users.username,
+        users.avatar_url,
+        users.reputation_score,
+        rooms.name AS room_name,
+        rooms.visibility AS room_visibility,
+        (
+          SELECT COUNT(*) FROM comments
+          WHERE comments.post_id = posts.id
+          AND comments.status != 'hidden'
+        ) AS comment_count,
+        (
+          SELECT COUNT(*) FROM ratings
+          WHERE ratings.comment_id IN (
+            SELECT comments.id FROM comments WHERE comments.post_id = posts.id
+          )
+        ) AS rating_count
+      FROM posts
+      JOIN users ON users.id = posts.user_id
+      LEFT JOIN rooms ON rooms.id = posts.room_id
+      WHERE posts.user_id = ?
+        AND posts.status = 'active'
+      ORDER BY posts.created_at DESC
+    `)
+    .all(userId) as Record<string, unknown>[];
 
   return rows.map(mapFeedPost);
 }
@@ -734,6 +1099,24 @@ export function markNotificationsRead(userId: string) {
   db.prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ?").run(userId);
 }
 
+export function countUnreadNotifications(userId: string) {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND is_read = 0")
+    .get(userId) as { count: number };
+
+  return Number(row.count ?? 0);
+}
+
+export function countJoinedRooms(userId: string) {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT COUNT(*) AS count FROM room_memberships WHERE user_id = ?")
+    .get(userId) as { count: number };
+
+  return Number(row.count ?? 0);
+}
+
 export function createNotification(input: {
   userId: string;
   type: string;
@@ -756,6 +1139,33 @@ export function createNotification(input: {
   );
 }
 
+export function getAppHome(currentUserId: string) {
+  const user = getUserById(currentUserId);
+
+  if (!user) {
+    return null;
+  }
+
+  const recentPosts = listFeedPosts(currentUserId).slice(0, 4);
+  const rooms = listRooms(currentUserId).filter((room) => room.isMember).slice(0, 4);
+  const notifications = listNotifications(currentUserId).slice(0, 4);
+  const userPosts = listPostsByUser(currentUserId);
+  const replies = listUserComments(currentUserId);
+
+  return {
+    user,
+    stats: {
+      postCount: userPosts.length,
+      roomCount: countJoinedRooms(currentUserId),
+      unreadNotificationCount: countUnreadNotifications(currentUserId),
+      replyCount: replies.length,
+    },
+    recentPosts,
+    rooms,
+    notifications,
+  } satisfies AppHomeView;
+}
+
 export function getProfile(currentUserId: string) {
   const user = getUserById(currentUserId);
 
@@ -763,7 +1173,7 @@ export function getProfile(currentUserId: string) {
     return null;
   }
 
-  const posts = listFeedPosts(currentUserId).filter((post) => post.author.id === currentUserId);
+  const posts = listPostsByUser(currentUserId);
   const postDetails = posts.slice(0, 5);
   const allComments = listUserComments(currentUserId);
 
@@ -773,6 +1183,16 @@ export function getProfile(currentUserId: string) {
     recentComments: allComments.slice(0, 6),
     notifications: listNotifications(currentUserId),
   } satisfies ProfileView;
+}
+
+export function getSecurityView(input: {
+  userId: string;
+  currentSessionId: string | null;
+}) {
+  return {
+    sessions: listUserSessions(input.userId, input.currentSessionId),
+    currentSessionId: input.currentSessionId,
+  };
 }
 
 export function updateProfile(input: { userId: string; bio: string }) {

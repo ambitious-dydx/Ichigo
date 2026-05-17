@@ -1,0 +1,29 @@
+<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="980" fill="#090C10"/>
+  <rect x="54" y="54" width="1492" height="872" rx="40" fill="#11151A" stroke="#1D252D" stroke-width="2"/>
+
+  <text x="120" y="166" fill="#F4F1ED" font-family="'Cormorant Garamond', Georgia, serif" font-size="86" font-weight="600">Ichigo Dark Theme Logos</text>
+  <text x="120" y="216" fill="#B8B3AE" font-family="'Space Grotesk', Arial, sans-serif" font-size="28">Brand assets built for charcoal surfaces, warm accents, and high-contrast product UI.</text>
+
+  <g transform="translate(120 290)">
+    <text x="0" y="-24" fill="#FF9F8E" font-family="'IBM Plex Mono', monospace" font-size="22" letter-spacing="0.18em">PRIMARY LOCKUP</text>
+    <image href="ichigo-lockup-dark.svg" width="780" height="280"/>
+  </g>
+
+  <g transform="translate(120 642)">
+    <text x="0" y="-24" fill="#FF9F8E" font-family="'IBM Plex Mono', monospace" font-size="22" letter-spacing="0.18em">MONO LOCKUP</text>
+    <image href="ichigo-lockup-dark-monochrome.svg" width="780" height="280"/>
+  </g>
+
+  <g transform="translate(1070 288)">
+    <text x="0" y="-24" fill="#FF9F8E" font-family="'IBM Plex Mono', monospace" font-size="22" letter-spacing="0.18em">MARK</text>
+    <rect width="360" height="260" rx="32" fill="#0C0F13" stroke="#1D252D"/>
+    <image x="50" y="12" href="ichigo-mark-dark.svg" width="260" height="260"/>
+  </g>
+
+  <g transform="translate(1070 610)">
+    <text x="0" y="-24" fill="#FF9F8E" font-family="'IBM Plex Mono', monospace" font-size="22" letter-spacing="0.18em">APP ICON</text>
+    <rect width="360" height="260" rx="32" fill="#0C0F13" stroke="#1D252D"/>
+    <image x="48" y="-2" href="ichigo-app-icon-dark.svg" width="264" height="264"/>
+  </g>
+</svg>

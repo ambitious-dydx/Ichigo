@@ -3,7 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ModeId } from "../modes";
-import { getCurrentUser, registerUser, requireCurrentUser, signInUser, signOutUser } from "./auth";
+import {
+  changePassword,
+  getCurrentSessionId,
+  registerUser,
+  requireCurrentUser,
+  revokeUserSession,
+  signInUser,
+  signOutOtherSessions,
+  signOutUser,
+  updateAccountDetails,
+} from "./auth";
 import {
   createCommentRecord,
   createPostRecord,
@@ -53,20 +63,20 @@ function isReportStatus(value: string): value is ReportStatus {
 }
 
 export async function loginAction(formData: FormData) {
-  const email = asString(formData.get("email"));
+  const identifier = asString(formData.get("identifier")) || asString(formData.get("email"));
   const password = asString(formData.get("password"));
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     redirect("/login?error=missing-fields");
   }
 
-  const user = await signInUser(email, password);
+  const result = await signInUser(identifier, password);
 
-  if (!user) {
+  if ("error" in result) {
     redirect("/login?error=invalid-credentials");
   }
 
-  redirect("/app/feed");
+  redirect("/app");
 }
 
 export async function registerAction(formData: FormData) {
@@ -78,13 +88,13 @@ export async function registerAction(formData: FormData) {
     redirect("/register?error=invalid-input");
   }
 
-  const user = await registerUser({ username, email, password });
+  const result = await registerUser({ username, email, password });
 
-  if (!user) {
-    redirect("/register?error=email-exists");
+  if ("error" in result) {
+    redirect(`/register?error=${result.error}`);
   }
 
-  redirect("/app/feed");
+  redirect("/app");
 }
 
 export async function logoutAction() {
@@ -116,6 +126,7 @@ export async function createPostAction(formData: FormData) {
   });
 
   revalidatePath("/app/feed");
+  revalidatePath("/app");
   revalidatePath("/app/profile");
   redirect(`/app/posts/${postId}`);
 }
@@ -130,6 +141,7 @@ export async function deletePostAction(formData: FormData) {
 
   deletePostRecord(postId, currentUser.id);
   revalidatePath("/app/feed");
+  revalidatePath("/app");
   revalidatePath("/app/profile");
   redirect("/app/feed");
 }
@@ -151,6 +163,7 @@ export async function createCommentAction(formData: FormData) {
 
   revalidatePath(`/app/posts/${postId}`);
   revalidatePath("/app/feed");
+  revalidatePath("/app");
   revalidatePath("/app/profile");
 }
 
@@ -172,6 +185,7 @@ export async function updateCommentAction(formData: FormData) {
   });
 
   revalidatePath(`/app/posts/${postId}`);
+  revalidatePath("/app");
 }
 
 export async function deleteCommentAction(formData: FormData) {
@@ -185,6 +199,7 @@ export async function deleteCommentAction(formData: FormData) {
 
   deleteCommentRecord(commentId, currentUser.id);
   revalidatePath(`/app/posts/${postId}`);
+  revalidatePath("/app");
   revalidatePath("/app/profile");
 }
 
@@ -206,6 +221,7 @@ export async function rateCommentAction(formData: FormData) {
 
   revalidatePath(`/app/posts/${postId}`);
   revalidatePath("/app/feed");
+  revalidatePath("/app");
   revalidatePath("/app/profile");
 }
 
@@ -253,6 +269,7 @@ export async function createRoomAction(formData: FormData) {
     createdBy: currentUser.id,
   });
 
+  revalidatePath("/app");
   revalidatePath("/app/rooms");
   redirect("/app/rooms");
 }
@@ -270,6 +287,7 @@ export async function joinRoomAction(formData: FormData) {
   }
 
   joinRoom(roomId, currentUser.id);
+  revalidatePath("/app");
   revalidatePath("/app/rooms");
   revalidatePath(`/app/rooms/${roomId}`);
 }
@@ -283,6 +301,7 @@ export async function leaveRoomAction(formData: FormData) {
   }
 
   leaveRoom(roomId, currentUser.id);
+  revalidatePath("/app");
   revalidatePath("/app/rooms");
   revalidatePath(`/app/rooms/${roomId}`);
 }
@@ -296,7 +315,9 @@ export async function updateProfileAction(formData: FormData) {
     bio,
   });
 
+  revalidatePath("/app");
   revalidatePath("/app/profile");
+  revalidatePath("/app/settings/account");
 }
 
 export async function updateReportStatusAction(formData: FormData) {
@@ -320,5 +341,79 @@ export async function updateReportStatusAction(formData: FormData) {
 export async function markNotificationsReadAction() {
   const currentUser = await requireCurrentUser();
   markNotificationsRead(currentUser.id);
+  revalidatePath("/app");
   revalidatePath("/app/notifications");
+}
+
+export async function updateAccountAction(formData: FormData) {
+  const currentUser = await requireCurrentUser();
+  const username = asString(formData.get("username"));
+  const email = asString(formData.get("email"));
+  const bio = asString(formData.get("bio"));
+
+  if (!username || !email) {
+    redirect("/app/settings/account?error=invalid-input");
+  }
+
+  const result = await updateAccountDetails(currentUser.id, { username, email, bio });
+
+  if ("error" in result) {
+    redirect(`/app/settings/account?error=${result.error}`);
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/app/profile");
+  revalidatePath("/app/settings");
+  revalidatePath("/app/settings/account");
+  redirect("/app/settings/account?success=account-saved");
+}
+
+export async function changePasswordAction(formData: FormData) {
+  const currentUser = await requireCurrentUser();
+  const currentPassword = asString(formData.get("currentPassword"));
+  const nextPassword = asString(formData.get("nextPassword"));
+  const confirmPassword = asString(formData.get("confirmPassword"));
+
+  if (!currentPassword || !nextPassword || !confirmPassword) {
+    redirect("/app/settings/security?error=missing-fields");
+  }
+
+  if (nextPassword !== confirmPassword) {
+    redirect("/app/settings/security?error=password-mismatch");
+  }
+
+  const result = await changePassword(currentUser.id, { currentPassword, nextPassword });
+
+  if ("error" in result) {
+    redirect(`/app/settings/security?error=${result.error}`);
+  }
+
+  revalidatePath("/app/settings/security");
+  redirect("/app/settings/security?success=password-changed");
+}
+
+export async function signOutOtherSessionsAction() {
+  await requireCurrentUser();
+  await signOutOtherSessions();
+  revalidatePath("/app/settings/security");
+  redirect("/app/settings/security?success=other-sessions-signed-out");
+}
+
+export async function revokeSessionAction(formData: FormData) {
+  await requireCurrentUser();
+  const sessionId = asString(formData.get("sessionId"));
+
+  if (!sessionId) {
+    redirect("/app/settings/security?error=invalid-session");
+  }
+
+  const currentSessionId = await getCurrentSessionId();
+  await revokeUserSession(sessionId);
+
+  if (currentSessionId && currentSessionId === sessionId) {
+    redirect("/login?success=session-ended");
+  }
+
+  revalidatePath("/app/settings/security");
+  redirect("/app/settings/security?success=session-revoked");
 }

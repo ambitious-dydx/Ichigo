@@ -4,9 +4,11 @@
   "version": "0.1.0",
   "description": "Ichigo is an intentional feedback platform.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "npm run build && vitest run",
+    "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
@@ -25,6 +27,8 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^6.0.3"
+    "playwright": "^1.60.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
   }
 }

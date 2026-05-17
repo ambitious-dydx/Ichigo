@@ -1,0 +1,13 @@
+<svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <mask id="lockupMonoHeartMask">
+      <rect width="340" height="320" fill="white"/>
+      <path d="M170 162C155 136 122 138 122 174C122 204 147 226 170 248C193 226 218 204 218 174C218 138 185 136 170 162Z" fill="black"/>
+    </mask>
+  </defs>
+  <g transform="translate(30 36)" mask="url(#lockupMonoHeartMask)">
+    <path d="M146 18C81 18 34 70 34 137C34 182 57 217 93 240L77 280C74 287 81 295 89 292L203 260C255 245 286 200 286 137C286 70 230 18 146 18Z" fill="#F4F1ED"/>
+    <path d="M200 18C265 18 312 70 312 137C312 182 289 217 253 240L269 280C272 287 265 295 257 292L143 260C91 245 60 200 60 137C60 70 116 18 200 18Z" fill="#F4F1ED" fill-opacity="0.86"/>
+  </g>
+  <text x="332" y="242" fill="#F4F1ED" font-family="'Cormorant Garamond', Georgia, serif" font-size="188" font-weight="600" letter-spacing="-0.04em">Ichigo</text>
+</svg>

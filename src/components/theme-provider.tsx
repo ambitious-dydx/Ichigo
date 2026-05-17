@@ -29,10 +29,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (currentTheme === "light" || currentTheme === "dark") {
       setThemeState(currentTheme);
     } else {
-      const fallbackTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-
+      const fallbackTheme = "light";
       applyTheme(fallbackTheme);
       setThemeState(fallbackTheme);
     }

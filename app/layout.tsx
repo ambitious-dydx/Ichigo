@@ -16,13 +16,10 @@ const themeScript = `
 (() => {
   try {
     const storedTheme = localStorage.getItem("ichigo-theme");
-    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const theme =
       storedTheme === "light" || storedTheme === "dark"
         ? storedTheme
-        : systemPrefersDark
-          ? "dark"
-          : "light";
+        : "light";
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   } catch (error) {
@@ -38,7 +35,7 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html data-theme="light" lang="en" style={{ colorScheme: "light" }} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ThemeProvider>{children}</ThemeProvider>

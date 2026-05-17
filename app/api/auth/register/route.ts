@@ -13,15 +13,28 @@ export async function POST(request: Request) {
     return jsonError("Invalid registration payload");
   }
 
-  const user = await registerUser({
+  const result = await registerUser({
     username: body.username.trim(),
     email: body.email.trim(),
     password: body.password,
   });
 
-  if (!user) {
-    return jsonError("Email is already registered", 409);
+  if ("error" in result) {
+    if (result.error === "email-exists" || result.error === "username-exists") {
+      return jsonError(
+        result.error === "email-exists" ? "Email is already registered" : "Username is already taken",
+        409,
+      );
+    }
+
+    if (
+      result.error === "invalid-email" ||
+      result.error === "invalid-username" ||
+      result.error === "weak-password"
+    ) {
+      return jsonError("Invalid registration payload", 422);
+    }
   }
 
-  return NextResponse.json({ user }, { status: 201 });
+  return NextResponse.json({ user: result.user }, { status: 201 });
 }

@@ -1,11 +1,31 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import ichigoLogo from "../../assets/logo/refined/ichigo-logo-transparent-v2.png";
+import { GoogleAuthButton } from "../../src/components/google-auth-button";
 import { SubmitButton } from "../../src/components/submit-button";
+import { ThemeLogo } from "../../src/components/theme-logo";
 import { ThemeToggle } from "../../src/components/theme-toggle";
 import { getCurrentUser } from "../../src/server/auth";
+import { isGoogleAuthConfigured } from "../../src/server/google-oauth";
 import { registerAction } from "../../src/server/actions";
+
+function getRegisterErrorMessage(error?: string) {
+  switch (error) {
+    case "invalid-input":
+      return "Use a name, an email, and a password with at least 8 characters.";
+    case "invalid-username":
+      return "Use 3 to 24 letters, numbers, or underscores for your username.";
+    case "invalid-email":
+      return "Enter a valid email address.";
+    case "weak-password":
+      return "Use a password with at least 8 characters.";
+    case "email-exists":
+      return "That email is already in use.";
+    case "username-exists":
+      return "That username is already taken.";
+    default:
+      return error ? "We could not create your account." : null;
+  }
+}
 
 export default async function RegisterPage({
   searchParams,
@@ -15,16 +35,18 @@ export default async function RegisterPage({
   const currentUser = await getCurrentUser();
 
   if (currentUser) {
-    redirect("/app/feed");
+    redirect("/app");
   }
 
   const { error } = await searchParams;
+  const errorMessage = getRegisterErrorMessage(error);
+  const hasGoogleAuth = isGoogleAuthConfigured();
 
   return (
     <main className="auth-shell">
       <div className="auth-header-row">
         <Link className="brand" href="/">
-          <Image src={ichigoLogo} alt="Ichigo logo" priority width={44} height={44} />
+          <ThemeLogo alt="Ichigo logo" height={44} width={44} />
           <span>Ichigo</span>
         </Link>
         <ThemeToggle />
@@ -33,13 +55,21 @@ export default async function RegisterPage({
       <div className="auth-grid auth-grid-single">
         <section className="panel auth-panel">
           <p className="eyebrow">Create account</p>
-          <h1>Join the context-first social layer.</h1>
+          <h1>Join with your own voice.</h1>
           <p className="hero-text">
-            Create your Ichigo account to post with response modes, join rooms, build
-            reputation, and receive feedback that actually fits.
+            Create your account to post with a clearer ask and reply with more care.
           </p>
 
-          {error ? <p className="form-error">Registration failed. Use a different email.</p> : null}
+          {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+
+          {hasGoogleAuth ? (
+            <div className="auth-provider-stack">
+              <GoogleAuthButton label="Create account with Google" />
+              <div className="auth-divider">
+                <span>or register with email</span>
+              </div>
+            </div>
+          ) : null}
 
           <form action={registerAction} className="inline-form-stack">
             <input className="text-input" name="username" placeholder="Username" type="text" required />

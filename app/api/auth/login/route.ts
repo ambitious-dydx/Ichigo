@@ -4,19 +4,21 @@ import { jsonError } from "../../../../src/server/http";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
+    identifier?: string;
     email?: string;
     password?: string;
   };
+  const identifier = body.identifier?.trim() || body.email?.trim();
 
-  if (!body.email || !body.password) {
-    return jsonError("Email and password are required");
+  if (!identifier || !body.password) {
+    return jsonError("Identifier and password are required");
   }
 
-  const user = await signInUser(body.email.trim(), body.password);
+  const result = await signInUser(identifier, body.password);
 
-  if (!user) {
+  if ("error" in result) {
     return jsonError("Invalid credentials", 401);
   }
 
-  return NextResponse.json({ user });
+  return NextResponse.json({ user: result.user });
 }

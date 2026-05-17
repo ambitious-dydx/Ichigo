@@ -46,12 +46,48 @@ Production build:
 npm run build
 ```
 
+## Testing
+
+Run the full test suite with:
+
+```bash
+npm test
+```
+
+This runs a production build first, then executes the automated `Vitest` suite against:
+
+- security primitives such as password hashing and session token behavior
+- response-mode classification and suggestion logic
+- repository flows for users, posts, comments, rooms, ratings, notifications, and reports
+- live HTTP integration for login, registration, account changes, password rotation, sessions, protected routes, and post creation
+
+## Authentication
+
+Ichigo now supports two real authentication paths:
+
+- email + password registration and sign-in
+- Google account sign-in
+
+To enable Google auth locally or in production, create `.env.local` from `.env.example` and provide:
+
+```bash
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+In Google Cloud, add these authorized redirect URIs for the OAuth client:
+
+```text
+http://localhost:3000/api/auth/google/callback
+https://your-production-domain.com/api/auth/google/callback
+```
+
 ## Demo Account
 
 Use the seeded local account:
 
 ```text
-email: daniel@ichigo.local
+email: nia@ichigo.local
 password: ichigo-demo
 ```
 

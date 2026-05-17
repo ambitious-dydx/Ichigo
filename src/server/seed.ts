@@ -2,18 +2,25 @@ import type { DatabaseSync } from "node:sqlite";
 import { modes } from "../modes";
 import { createAvatarFallback, hashPassword } from "./security";
 
+export const DEMO_ACCOUNT = {
+  id: "user_daniel",
+  username: "Nia",
+  email: "nia@ichigo.local",
+  password: "ichigo-demo",
+} as const;
+
 function nowMinus(minutes: number) {
   return new Date(Date.now() - minutes * 60_000).toISOString();
 }
 
 export function seedDatabase(db: DatabaseSync) {
-  const demoPasswordHash = hashPassword("ichigo-demo");
+  const demoPasswordHash = hashPassword(DEMO_ACCOUNT.password);
 
   const users = [
     {
-      id: "user_daniel",
-      username: "Daniel",
-      email: "daniel@ichigo.local",
+      id: DEMO_ACCOUNT.id,
+      username: DEMO_ACCOUNT.username,
+      email: DEMO_ACCOUNT.email,
       bio: "Founder building emotionally intentional social products.",
       role: "admin",
       reputation: 48,
@@ -308,7 +315,7 @@ export function seedDatabase(db: DatabaseSync) {
       "user_mia",
       "new_comment",
       "You received a new response",
-      "Daniel commented on your Comfort Me post.",
+      `${DEMO_ACCOUNT.username} commented on your Comfort Me post.`,
       "/app/posts/post_seed_2",
       0,
       nowMinus(76),

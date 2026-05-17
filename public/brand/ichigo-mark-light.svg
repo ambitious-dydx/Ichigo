@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ichigoLightLeft" x1="120" y1="96" x2="310" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF7A68"/>
+      <stop offset="1" stop-color="#FF5C56"/>
+    </linearGradient>
+    <linearGradient id="ichigoLightRight" x1="394" y1="108" x2="250" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD7CF"/>
+      <stop offset="1" stop-color="#F9B0A6"/>
+    </linearGradient>
+    <mask id="ichigoHeartMaskLight">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 247C238 216 199 218 199 261C199 297 228 323 256 349C284 323 313 297 313 261C313 218 274 216 256 247Z" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#ichigoHeartMaskLight)">
+    <path d="M224 92C147 92 91 150 91 229C91 282 118 324 161 351L142 398C138 407 147 416 157 413L293 374C355 356 392 303 392 229C392 150 326 92 224 92Z" fill="url(#ichigoLightLeft)"/>
+    <path d="M288 92C365 92 421 150 421 229C421 282 394 324 351 351L370 398C374 407 365 416 355 413L219 374C157 356 120 303 120 229C120 150 186 92 288 92Z" fill="url(#ichigoLightRight)" fill-opacity="0.94"/>
+  </g>
+</svg>

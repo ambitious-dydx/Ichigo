@@ -1,0 +1,29 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="appDarkPanel" x1="88" y1="80" x2="944" y2="960" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171C22"/>
+      <stop offset="1" stop-color="#090C10"/>
+    </linearGradient>
+    <linearGradient id="appDarkLeft" x1="276" y1="282" x2="550" y2="710" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8F7A"/>
+      <stop offset="1" stop-color="#EA7668"/>
+    </linearGradient>
+    <linearGradient id="appDarkRight" x1="742" y1="292" x2="480" y2="724" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD9D0"/>
+      <stop offset="1" stop-color="#F3A79B"/>
+    </linearGradient>
+    <mask id="appDarkHeartMask">
+      <rect width="1024" height="1024" rx="0" fill="white"/>
+      <path d="M512 495C475 432 398 436 398 521C398 593 455 645 512 697C569 645 626 593 626 521C626 436 549 432 512 495Z" fill="black"/>
+    </mask>
+    <filter id="appDarkShadow" x="104" y="110" width="816" height="816" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#000000" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+  <rect x="88" y="88" width="848" height="848" rx="196" fill="url(#appDarkPanel)"/>
+  <rect x="88.5" y="88.5" width="847" height="847" rx="195.5" stroke="#1D252D"/>
+  <g filter="url(#appDarkShadow)" mask="url(#appDarkHeartMask)">
+    <path d="M448 184C311 184 210 286 210 426C210 519 259 598 335 646L302 730C295 746 311 762 328 758L570 691C680 661 746 565 746 426C746 286 629 184 448 184Z" fill="url(#appDarkLeft)"/>
+    <path d="M576 184C713 184 814 286 814 426C814 519 765 598 689 646L722 730C729 746 713 762 696 758L454 691C344 661 278 565 278 426C278 286 395 184 576 184Z" fill="url(#appDarkRight)" fill-opacity="0.92"/>
+  </g>
+</svg>

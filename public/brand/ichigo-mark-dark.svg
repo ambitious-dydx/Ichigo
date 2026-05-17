@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ichigoDarkLeft" x1="116" y1="88" x2="314" y2="404" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8F7A"/>
+      <stop offset="1" stop-color="#EA7668"/>
+    </linearGradient>
+    <linearGradient id="ichigoDarkRight" x1="398" y1="98" x2="248" y2="408" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD9D0"/>
+      <stop offset="1" stop-color="#F3A79B"/>
+    </linearGradient>
+    <mask id="ichigoHeartMaskDark">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 247C238 216 199 218 199 261C199 297 228 323 256 349C284 323 313 297 313 261C313 218 274 216 256 247Z" fill="black"/>
+    </mask>
+    <filter id="ichigoDarkGlow" x="72" y="72" width="368" height="368" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g filter="url(#ichigoDarkGlow)" mask="url(#ichigoHeartMaskDark)">
+    <path d="M224 92C147 92 91 150 91 229C91 282 118 324 161 351L142 398C138 407 147 416 157 413L293 374C355 356 392 303 392 229C392 150 326 92 224 92Z" fill="url(#ichigoDarkLeft)"/>
+    <path d="M288 92C365 92 421 150 421 229C421 282 394 324 351 351L370 398C374 407 365 416 355 413L219 374C157 356 120 303 120 229C120 150 186 92 288 92Z" fill="url(#ichigoDarkRight)" fill-opacity="0.92"/>
+  </g>
+</svg>

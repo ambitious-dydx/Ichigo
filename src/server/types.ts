@@ -21,11 +21,21 @@ export type SessionUser = {
   id: string;
   username: string;
   email: string;
+  emailVerifiedAt: string | null;
   bio: string;
   avatarUrl: string | null;
   reputationScore: number;
   role: UserRole;
   createdAt: string;
+};
+
+export type AuthSessionView = {
+  id: string;
+  userAgent: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
 };
 
 export type FeedPost = {
@@ -109,6 +119,24 @@ export type ProfileView = {
   posts: FeedPost[];
   recentComments: CommentView[];
   notifications: NotificationView[];
+};
+
+export type AppHomeView = {
+  user: SessionUser;
+  stats: {
+    postCount: number;
+    roomCount: number;
+    unreadNotificationCount: number;
+    replyCount: number;
+  };
+  recentPosts: FeedPost[];
+  rooms: RoomView[];
+  notifications: NotificationView[];
+};
+
+export type SecurityView = {
+  sessions: AuthSessionView[];
+  currentSessionId: string | null;
 };
 
 export type AlignmentResult = {
