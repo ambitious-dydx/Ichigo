@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DismissibleStatusBanner } from "../../../src/components/dismissible-status-banner";
 import { completeOnboardingAction } from "../../../src/server/actions";
 import { requireCurrentUser } from "../../../src/server/auth";
 import { modes } from "../../../src/modes";
@@ -70,7 +71,9 @@ export default async function OnboardingRoute({
           </div>
         </div>
 
-        {errorMessage ? <div className="status-banner status-banner-error">{errorMessage}</div> : null}
+        {errorMessage ? (
+          <DismissibleStatusBanner clearKeys={["error"]} text={errorMessage} tone="error" />
+        ) : null}
 
         <form action={completeOnboardingAction} className="panel editor-panel form-grid">
           <div className="panel-title-row">

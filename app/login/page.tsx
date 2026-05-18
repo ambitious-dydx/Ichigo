@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DismissibleStatusBanner } from "../../src/components/dismissible-status-banner";
 import { GoogleAuthButton } from "../../src/components/google-auth-button";
 import { PasswordField } from "../../src/components/password-field";
 import { SubmitButton } from "../../src/components/submit-button";
@@ -55,7 +56,7 @@ function getLoginSuccessMessage(success?: string) {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; preview?: string }>;
 }) {
   const currentUser = await getCurrentUser();
 
@@ -91,8 +92,12 @@ export default async function LoginPage({
             Sign in to write posts, join rooms, and reply with a little more care.
           </p>
 
-          {successMessage ? <p className="status-banner">{successMessage}</p> : null}
-          {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+          {successMessage ? (
+            <DismissibleStatusBanner clearKeys={["success", "preview"]} text={successMessage} tone="success" />
+          ) : null}
+          {errorMessage ? (
+            <DismissibleStatusBanner clearKeys={["error"]} text={errorMessage} tone="error" />
+          ) : null}
 
           {hasGoogleAuth ? (
             <div className="auth-provider-stack">

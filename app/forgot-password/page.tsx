@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DismissibleStatusBanner } from "../../src/components/dismissible-status-banner";
 import { requestPasswordResetAction } from "../../src/server/actions";
 import { ThemeLogo } from "../../src/components/theme-logo";
 import { ThemeToggle } from "../../src/components/theme-toggle";
@@ -54,8 +55,12 @@ export default async function ForgotPasswordPage({
             Enter your email or username and Ichigo will send a password reset email if the account exists.
           </p>
 
-          {notice ? <p className="status-banner">{notice.text}</p> : null}
-          {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+          {notice ? (
+            <DismissibleStatusBanner clearKeys={["success", "preview"]} text={notice.text} tone={notice.tone} />
+          ) : null}
+          {errorMessage ? (
+            <DismissibleStatusBanner clearKeys={["error"]} text={errorMessage} tone="error" />
+          ) : null}
 
           <form action={requestPasswordResetAction} className="inline-form-stack">
             <input

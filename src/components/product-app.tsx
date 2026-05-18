@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ComposeKickstart } from "./compose-kickstart";
+import { DismissibleStatusBanner } from "./dismissible-status-banner";
 import { modes } from "../modes";
 import type {
   BlockedUserView,
@@ -185,9 +186,7 @@ function StatusBanner({ notice }: { notice: PageNotice }) {
   }
 
   return (
-    <div className={`status-banner ${notice.tone === "error" ? "status-banner-error" : ""}`}>
-      {notice.text}
-    </div>
+    <DismissibleStatusBanner clearKeys={["success", "error", "preview"]} text={notice.text} tone={notice.tone} />
   );
 }
 

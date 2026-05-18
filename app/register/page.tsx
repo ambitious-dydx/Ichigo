@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DismissibleStatusBanner } from "../../src/components/dismissible-status-banner";
 import { GoogleAuthButton } from "../../src/components/google-auth-button";
 import { PasswordField } from "../../src/components/password-field";
 import { SubmitButton } from "../../src/components/submit-button";
@@ -67,7 +68,9 @@ export default async function RegisterPage({
             Create your account to post with a clearer ask and reply with more care.
           </p>
 
-          {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+          {errorMessage ? (
+            <DismissibleStatusBanner clearKeys={["error"]} text={errorMessage} tone="error" />
+          ) : null}
 
           {hasGoogleAuth ? (
             <div className="auth-provider-stack">

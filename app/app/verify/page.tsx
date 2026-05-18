@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DismissibleStatusBanner } from "../../../src/components/dismissible-status-banner";
 import { logoutAction, requestEmailVerificationAction } from "../../../src/server/actions";
 import { requireCurrentUser } from "../../../src/server/auth";
 
@@ -58,9 +59,11 @@ export default async function VerifyGatePage({
         </div>
 
         {notice ? (
-          <div className={notice.tone === "error" ? "status-banner status-banner-error" : "status-banner"}>
-            {notice.text}
-          </div>
+          <DismissibleStatusBanner
+            clearKeys={["success", "error", "preview"]}
+            text={notice.text}
+            tone={notice.tone}
+          />
         ) : null}
 
         <section className="panel editor-panel form-grid">

@@ -1749,6 +1749,10 @@ p {
 }
 
 .status-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
   padding: 0.95rem 1rem;
   border: 1px solid var(--success-border);
   border-radius: 16px;
@@ -1761,6 +1765,41 @@ p {
   border-color: var(--error-border);
   background: var(--error-surface);
   color: var(--error-text);
+}
+
+.status-banner-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  margin: -0.2rem -0.2rem 0 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.74;
+  transition:
+    opacity 160ms ease,
+    background 160ms ease;
+}
+
+.status-banner-dismiss:hover,
+.status-banner-dismiss:focus-visible {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.05);
+  outline: none;
+}
+
+[data-theme="dark"] .status-banner-dismiss:hover,
+[data-theme="dark"] .status-banner-dismiss:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-banner-dismiss span {
+  line-height: 1;
+  font-size: 1.35rem;
 }
 
 .session-list {
