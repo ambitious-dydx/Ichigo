@@ -106,15 +106,18 @@ export async function loginAction(formData: FormData) {
   }
 
   if (!result.user.emailVerifiedAt) {
+    let delivery;
+
     try {
-      const delivery = await requestEmailVerification(result.user.id);
-      const previewParam = delivery.previewUrl
-        ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
-        : "";
-      redirect(`/app/verify?success=verification-link-created${previewParam}`);
+      delivery = await requestEmailVerification(result.user.id);
     } catch {
       redirect("/app/verify?error=delivery-failed");
     }
+
+    const previewParam = delivery.previewUrl
+      ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+      : "";
+    redirect(`/app/verify?success=verification-link-created${previewParam}`);
   }
 
   redirect(result.user.onboardingCompletedAt ? "/app" : "/app/onboarding");
@@ -140,12 +143,18 @@ export async function registerAction(formData: FormData) {
     redirect(`/register?error=${result.error}`);
   }
 
+  let delivery;
+
   try {
-    await requestEmailVerification(result.user.id);
-    redirect("/login?success=verification-email-sent");
+    delivery = await requestEmailVerification(result.user.id);
   } catch {
     redirect("/login?error=verification-email-failed");
   }
+
+  const previewParam = delivery.previewUrl
+    ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+    : "";
+  redirect(`/login?success=verification-email-sent${previewParam}`);
 }
 
 export async function logoutAction() {
@@ -486,15 +495,18 @@ export async function updateAccountAction(formData: FormData) {
   }
 
   if (result.user && !result.user.emailVerifiedAt) {
+    let delivery;
+
     try {
-      const delivery = await requestEmailVerification(currentUser.id);
-      const previewParam = delivery.previewUrl
-        ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
-        : "";
-      redirect(`/app/settings/account?success=account-saved${previewParam}`);
+      delivery = await requestEmailVerification(currentUser.id);
     } catch {
       redirect("/app/settings/account?success=account-saved-verification-failed");
     }
+
+    const previewParam = delivery.previewUrl
+      ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+      : "";
+    redirect(`/app/settings/account?success=account-saved${previewParam}`);
   }
 
   revalidatePath("/app");
@@ -581,15 +593,18 @@ export async function requestEmailVerificationAction(formData: FormData) {
   const currentUser = await requireCurrentUser();
   const redirectTo = asString(formData.get("redirectTo")) || "/app/settings/account";
 
+  let delivery;
+
   try {
-    const delivery = await requestEmailVerification(currentUser.id);
-    const previewParam = delivery.previewUrl
-      ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
-      : "";
-    redirect(`${redirectTo}?success=verification-link-created${previewParam}`);
+    delivery = await requestEmailVerification(currentUser.id);
   } catch {
     redirect(`${redirectTo}?error=delivery-failed`);
   }
+
+  const previewParam = delivery.previewUrl
+    ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+    : "";
+  redirect(`${redirectTo}?success=verification-link-created${previewParam}`);
 }
 
 export async function verifyEmailAction(formData: FormData) {
