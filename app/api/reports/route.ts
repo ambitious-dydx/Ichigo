@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserOrThrowApi } from "../../../src/server/auth";
+import {
+  getCurrentOnboardedUserOrThrowApi,
+  isOnboardingRequiredError,
+  isVerificationRequiredError,
+} from "../../../src/server/auth";
 import { jsonError } from "../../../src/server/http";
 import { createReportRecord } from "../../../src/server/repository";
 import type { TargetType } from "../../../src/server/types";
@@ -10,7 +14,7 @@ function isTargetType(value: string): value is TargetType {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUserOrThrowApi();
+    const user = await getCurrentOnboardedUserOrThrowApi();
     const body = (await request.json()) as {
       targetType?: string;
       targetId?: string;
@@ -30,6 +34,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ reportId }, { status: 201 });
   } catch (error) {
+    if (isVerificationRequiredError(error)) {
+      return jsonError("Verify your email before sending reports", 403);
+    }
+
+    if (isOnboardingRequiredError(error)) {
+      return jsonError("Complete onboarding before sending reports", 403);
+    }
+
     return jsonError("Unauthorized", 401);
   }
 }

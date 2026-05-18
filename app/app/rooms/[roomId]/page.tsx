@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { RoomDetailPage } from "../../../../src/components/product-app";
-import { requireCurrentUser } from "../../../../src/server/auth";
+import { requireOnboardedUser } from "../../../../src/server/auth";
 import { getRoomDetail } from "../../../../src/server/repository";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export default async function RoomDetailRoute({
 }: {
   params: Promise<{ roomId: string }>;
 }) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const { roomId } = await params;
   const roomDetail = getRoomDetail(roomId, currentUser.id);
 

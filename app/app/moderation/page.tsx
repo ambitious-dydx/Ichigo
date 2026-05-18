@@ -1,11 +1,22 @@
 import { ModerationPage } from "../../../src/components/product-app";
-import { requireCurrentUser } from "../../../src/server/auth";
-import { listModerationReports } from "../../../src/server/repository";
+import { requireOnboardedUser } from "../../../src/server/auth";
+import {
+  getModerationOverview,
+  listFlaggedComments,
+  listModerationReports,
+} from "../../../src/server/repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function ModerationRoute() {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
 
-  return <ModerationPage currentUser={currentUser} reports={listModerationReports()} />;
+  return (
+    <ModerationPage
+      currentUser={currentUser}
+      flaggedComments={listFlaggedComments()}
+      overview={getModerationOverview()}
+      reports={listModerationReports()}
+    />
+  );
 }

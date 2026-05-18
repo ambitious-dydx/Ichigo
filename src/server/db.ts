@@ -37,6 +37,10 @@ function initializeSchema(db: DatabaseSync) {
       password_hash TEXT NOT NULL,
       password_changed_at TEXT,
       email_verified_at TEXT,
+      onboarding_completed_at TEXT,
+      onboarding_focus TEXT,
+      onboarding_goal TEXT NOT NULL DEFAULT '',
+      preferred_mode TEXT,
       avatar_url TEXT,
       bio TEXT NOT NULL DEFAULT '',
       reputation_score INTEGER NOT NULL DEFAULT 0,
@@ -78,6 +82,7 @@ function initializeSchema(db: DatabaseSync) {
       visibility TEXT NOT NULL,
       created_by TEXT NOT NULL,
       created_at TEXT NOT NULL,
+      updated_at TEXT,
       FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -140,6 +145,7 @@ function initializeSchema(db: DatabaseSync) {
       reporter_id TEXT NOT NULL,
       reason TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'open',
+      moderator_note TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
       FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
     );
@@ -152,8 +158,62 @@ function initializeSchema(db: DatabaseSync) {
       body TEXT NOT NULL,
       link TEXT NOT NULL,
       is_read INTEGER NOT NULL DEFAULT 0,
+      priority TEXT NOT NULL DEFAULT 'default',
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS account_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      type TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_relationships (
+      id TEXT PRIMARY KEY,
+      subject_user_id TEXT NOT NULL,
+      object_user_id TEXT NOT NULL,
+      relationship_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (subject_user_id, object_user_id, relationship_type),
+      FOREIGN KEY (subject_user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (object_user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS product_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      event_name TEXT NOT NULL,
+      route TEXT,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS moderation_events (
+      id TEXT PRIMARY KEY,
+      report_id TEXT,
+      actor_user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE SET NULL,
+      FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      id TEXT PRIMARY KEY,
+      scope_key TEXT NOT NULL,
+      action TEXT NOT NULL,
+      window_started_at TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      UNIQUE (scope_key, action)
     );
 
     CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
@@ -164,15 +224,27 @@ function initializeSchema(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id, expires_at DESC);
     CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_account_tokens_user_id ON account_tokens(user_id, type, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_user_relationships_subject ON user_relationships(subject_user_id, relationship_type);
+    CREATE INDEX IF NOT EXISTS idx_product_events_user_id ON product_events(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_product_events_name ON product_events(event_name, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_moderation_events_report_id ON moderation_events(report_id, created_at DESC);
   `);
 }
 
 function runMigrations(db: DatabaseSync) {
   ensureColumn(db, "users", "password_changed_at", "TEXT");
   ensureColumn(db, "users", "email_verified_at", "TEXT");
+  ensureColumn(db, "users", "onboarding_completed_at", "TEXT");
+  ensureColumn(db, "users", "onboarding_focus", "TEXT");
+  ensureColumn(db, "users", "onboarding_goal", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "users", "preferred_mode", "TEXT");
   ensureColumn(db, "sessions", "user_agent", "TEXT");
   ensureColumn(db, "sessions", "last_seen_at", "TEXT");
   ensureColumn(db, "sessions", "revoked_at", "TEXT");
+  ensureColumn(db, "rooms", "updated_at", "TEXT");
+  ensureColumn(db, "reports", "moderator_note", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "notifications", "priority", "TEXT NOT NULL DEFAULT 'default'");
 
   db.exec(`
     UPDATE users
@@ -182,11 +254,27 @@ function runMigrations(db: DatabaseSync) {
     UPDATE sessions
     SET last_seen_at = COALESCE(last_seen_at, created_at)
     WHERE last_seen_at IS NULL;
+
+    UPDATE rooms
+    SET updated_at = COALESCE(updated_at, created_at)
+    WHERE updated_at IS NULL;
   `);
 
   db.prepare(`
     UPDATE users
-    SET username = ?, email = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+    SET
+      username = ?,
+      email = ?,
+      avatar_url = ?,
+      onboarding_focus = COALESCE(onboarding_focus, 'founder'),
+      onboarding_goal = CASE
+        WHEN COALESCE(onboarding_goal, '') = '' THEN 'I need stronger feedback on product and launch decisions.'
+        ELSE onboarding_goal
+      END,
+      preferred_mode = COALESCE(preferred_mode, 'advise'),
+      onboarding_completed_at = COALESCE(onboarding_completed_at, created_at),
+      email_verified_at = COALESCE(email_verified_at, created_at),
+      updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
     DEMO_ACCOUNT.username,
@@ -224,8 +312,8 @@ export function getDb() {
 
   database = new DatabaseSync(databasePath);
   initializeSchema(database);
-  runMigrations(database);
   seedIfNeeded(database);
+  runMigrations(database);
 
   return database;
 }

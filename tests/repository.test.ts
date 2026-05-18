@@ -1,22 +1,34 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  ReplyQualityCooldownError,
+  clearUserRelationship,
+  completeUserOnboarding,
+  consumeAccountToken,
   countJoinedRooms,
+  createAccountToken,
   createCommentRecord,
   createPostRecord,
   createReportRecord,
   createRoomRecord,
   createUserRecord,
   getAppHome,
+  getModerationOverview,
   getPostDetail,
+  listFlaggedComments,
+  getReplyQualityGuard,
   getUserAuthByIdentifier,
   getUserById,
+  getProductHealthSummary,
   joinRoom,
   leaveRoom,
+  listBlockedUsers,
   listFeedPosts,
   listModerationReports,
   listNotifications,
   listRooms,
   rateCommentRecord,
+  setUserRelationship,
+  updateCommentModerationStatus,
   updateReportStatus,
 } from "../src/server/repository";
 import { DEMO_ACCOUNT } from "../src/server/seed";
@@ -42,6 +54,8 @@ describe("repository integration", () => {
     expect(home?.stats.postCount).toBeGreaterThan(0);
     expect(home?.rooms.length).toBeGreaterThan(0);
     expect(home?.notifications.length).toBeGreaterThan(0);
+    expect(home?.replyQualityGuard.alignedCount).toBeGreaterThanOrEqual(1);
+    expect(home?.productHealth?.alignedReplyRate).toBeGreaterThan(0);
 
     const feed = listFeedPosts(DEMO_ACCOUNT.id);
     expect(feed.length).toBeGreaterThan(0);
@@ -64,6 +78,70 @@ describe("repository integration", () => {
     expect(byEmail?.user.id).toBe(user?.id);
     expect(byUsername?.user.id).toBe(user?.id);
     expect(byEmail?.passwordHash).toBe(passwordHash);
+  });
+
+  it("tracks onboarding state, account tokens, and trust relationships", () => {
+    const user = createUserRecord({
+      username: "focus_tester",
+      email: "focus@example.com",
+      passwordHash: hashPassword("focus-password-123"),
+    });
+
+    expect(user?.onboardingCompletedAt).toBeNull();
+
+    const onboardedUser = completeUserOnboarding({
+      userId: user?.id ?? "",
+      onboardingFocus: "founder",
+      onboardingGoal: "I need better product feedback before I ship.",
+      preferredMode: "advise",
+    });
+
+    expect(onboardedUser?.onboardingFocus).toBe("founder");
+    expect(onboardedUser?.preferredMode).toBe("advise");
+    expect(onboardedUser?.onboardingCompletedAt).not.toBeNull();
+
+    const token = createAccountToken({
+      userId: user?.id ?? "",
+      type: "email_verification",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+
+    expect(token).toBeTruthy();
+    expect(listBlockedUsers(DEMO_ACCOUNT.id)).toHaveLength(0);
+
+    const consumed = consumeAccountToken(token, "email_verification");
+    expect(consumed?.userId).toBe(user?.id);
+    expect(consumeAccountToken(token, "email_verification")).toBeNull();
+
+    expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_ada")).toBe(true);
+
+    setUserRelationship({
+      subjectUserId: DEMO_ACCOUNT.id,
+      objectUserId: "user_ada",
+      relationshipType: "block",
+    });
+
+    expect(listBlockedUsers(DEMO_ACCOUNT.id)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "user_ada",
+          type: "block",
+        }),
+      ]),
+    );
+    expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_ada")).toBe(
+      false,
+    );
+
+    clearUserRelationship({
+      subjectUserId: DEMO_ACCOUNT.id,
+      objectUserId: "user_ada",
+      relationshipType: "block",
+    });
+
+    expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_ada")).toBe(
+      true,
+    );
   });
 
   it("handles post, comment, rating, and notification flows", () => {
@@ -161,8 +239,63 @@ describe("repository integration", () => {
     const detailAfterReport = getPostDetail(postId, "user_ada");
     const reportedComment = detailAfterReport?.comments.find((entry) => entry.id === commentResult.commentId);
     expect(reportedComment?.status).toBe("flagged");
+    expect(listFlaggedComments().some((comment) => comment.id === commentResult.commentId)).toBe(
+      true,
+    );
+    expect(getModerationOverview().flaggedComments).toBeGreaterThan(0);
 
     updateReportStatus(reportId, "resolved");
     expect(listModerationReports().find((report) => report.id === reportId)?.status).toBe("resolved");
+
+    updateCommentModerationStatus({
+      actorUserId: DEMO_ACCOUNT.id,
+      commentId: commentResult.commentId,
+      status: "hidden",
+    });
+    expect(
+      getPostDetail(postId, "user_ada")?.comments.find((entry) => entry.id === commentResult.commentId)
+        ?.status,
+    ).toBe("hidden");
+  });
+
+  it("starts a cooldown after repeated off-tone replies and exposes product health metrics", () => {
+    const postId = createPostRecord({
+      userId: "user_ada",
+      content: "Help me decide which of these launch paths to choose next.",
+      responseMode: "advise",
+      visibility: "public",
+      roomId: "room_public",
+      isAnonymous: false,
+      tags: ["launch", "decision"],
+    });
+
+    for (let index = 0; index < 3; index += 1) {
+      const result = createCommentRecord({
+        postId,
+        userId: DEMO_ACCOUNT.id,
+        content: "I can't help with this.",
+      });
+
+      expect(["borderline", "violation"]).toContain(result.alignment.classification);
+    }
+
+    const guard = getReplyQualityGuard(DEMO_ACCOUNT.id);
+    expect(guard.isOnCooldown).toBe(true);
+    expect(guard.cooldownEndsAt).not.toBeNull();
+    expect(guard.lowAlignmentCount).toBeGreaterThanOrEqual(3);
+
+    expect(() =>
+      createCommentRecord({
+        postId,
+        userId: DEMO_ACCOUNT.id,
+        content: "Try ranking the choices by what they teach you fastest.",
+      }),
+    ).toThrowError(ReplyQualityCooldownError);
+
+    const health = getProductHealthSummary();
+    expect(health.totalUsers).toBeGreaterThanOrEqual(4);
+    expect(health.onboardedUsers).toBeGreaterThan(0);
+    expect(health.postsWithReplies).toBeGreaterThan(0);
+    expect(health.modeUsage.length).toBeGreaterThan(0);
   });
 });

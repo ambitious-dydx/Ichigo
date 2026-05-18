@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserOrThrowApi } from "../../../src/server/auth";
+import {
+  getCurrentOnboardedUserOrThrowApi,
+  getCurrentUserOrThrowApi,
+  isOnboardingRequiredError,
+  isVerificationRequiredError,
+} from "../../../src/server/auth";
 import { jsonError } from "../../../src/server/http";
 import { createRoomRecord, listRooms } from "../../../src/server/repository";
 import type { Visibility } from "../../../src/server/types";
@@ -24,7 +29,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUserOrThrowApi();
+    const user = await getCurrentOnboardedUserOrThrowApi();
     const body = (await request.json()) as {
       name?: string;
       description?: string;
@@ -50,6 +55,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ roomId }, { status: 201 });
   } catch (error) {
+    if (isVerificationRequiredError(error)) {
+      return jsonError("Verify your email before creating rooms", 403);
+    }
+
+    if (isOnboardingRequiredError(error)) {
+      return jsonError("Complete onboarding before creating rooms", 403);
+    }
+
     return jsonError("Unauthorized", 401);
   }
 }

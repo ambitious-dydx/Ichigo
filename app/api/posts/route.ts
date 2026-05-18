@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserOrThrowApi } from "../../../src/server/auth";
+import {
+  getCurrentOnboardedUserOrThrowApi,
+  isOnboardingRequiredError,
+  isVerificationRequiredError,
+} from "../../../src/server/auth";
 import { jsonError } from "../../../src/server/http";
 import { createPostRecord } from "../../../src/server/repository";
 import type { Visibility } from "../../../src/server/types";
@@ -15,7 +19,7 @@ function isVisibility(value: string): value is Visibility {
 
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUserOrThrowApi();
+    const user = await getCurrentOnboardedUserOrThrowApi();
     const body = (await request.json()) as {
       content?: string;
       responseMode?: string;
@@ -47,6 +51,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ postId }, { status: 201 });
   } catch (error) {
+    if (isVerificationRequiredError(error)) {
+      return jsonError("Verify your email before posting", 403);
+    }
+
+    if (isOnboardingRequiredError(error)) {
+      return jsonError("Complete onboarding before posting", 403);
+    }
+
     return jsonError("Unauthorized", 401);
   }
 }

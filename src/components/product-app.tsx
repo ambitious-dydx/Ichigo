@@ -1,20 +1,26 @@
 import Link from "next/link";
+import { ComposeKickstart } from "./compose-kickstart";
 import { modes } from "../modes";
 import type {
+  BlockedUserView,
   AppHomeView,
   CommentView,
   FeedPost,
+  FlaggedCommentView,
+  ModerationOverviewView,
   NotificationView,
   PostDetail,
   ProfileView,
   RatingType,
   ReportView,
+  ReplyQualityGuardView,
   RoomView,
   SecurityView,
   SessionUser,
 } from "../server/types";
 import {
   changePasswordAction,
+  clearRelationshipAction,
   createCommentAction,
   createPostAction,
   createRoomAction,
@@ -24,13 +30,18 @@ import {
   markNotificationsReadAction,
   rateCommentAction,
   reportAction,
+  requestEmailVerificationAction,
   revokeSessionAction,
+  setRelationshipAction,
   signOutOtherSessionsAction,
+  updateCommentModerationStatusAction,
   updateAccountAction,
   updateProfileAction,
   updateReportStatusAction,
 } from "../server/actions";
 import { AppNavigation } from "./app-nav";
+import { PasswordField } from "./password-field";
+import { ReplyAssistantForm } from "./reply-assistant-form";
 import { SubmitButton } from "./submit-button";
 
 function formatTime(value: string) {
@@ -92,6 +103,65 @@ function describeReportStatus(value: ReportView["status"]) {
 
 function describeReportTarget(value: ReportView["targetType"]) {
   return value === "comment" ? "Reply" : "Post";
+}
+
+function describeFocus(value: SessionUser["onboardingFocus"]) {
+  switch (value) {
+    case "creator":
+      return "Creator work";
+    case "reflection":
+      return "Personal reflection";
+    case "support":
+      return "Support seeking";
+    case "founder":
+      return "Founder feedback";
+    default:
+      return "Not set";
+  }
+}
+
+function formatModeLabel(modeId: string | null) {
+  if (!modeId) {
+    return "Not set";
+  }
+
+  return modes.find((mode) => mode.id === modeId)?.name ?? modeId;
+}
+
+function formatMinutesLabel(value: number | null) {
+  if (value === null) {
+    return "No replies yet";
+  }
+
+  return `${value} min`;
+}
+
+function describeReplyGuardState(guard: ReplyQualityGuardView) {
+  if (guard.isOnCooldown) {
+    return "Paused";
+  }
+
+  if (guard.violationCount > 0) {
+    return "Needs repair";
+  }
+
+  if (guard.lowAlignmentCount > 0) {
+    return "Watch it";
+  }
+
+  return "Healthy";
+}
+
+function describeReplyGuardSummary(guard: ReplyQualityGuardView) {
+  if (guard.isOnCooldown) {
+    return "Ichigo has paused replying because too many recent replies broke the ask.";
+  }
+
+  if (guard.lowAlignmentCount === 0) {
+    return "Your recent replies are staying close to the contract people asked for.";
+  }
+
+  return "A few recent replies drifted. Slow down and reread the ask before sending the next one.";
 }
 
 type PageNotice = {
@@ -270,7 +340,10 @@ function NotificationLinkCard({
         <p>{notification.body}</p>
       </div>
       {detailed ? (
-        <span className="card-footer-note">{notification.isRead ? "Seen" : "Unread"}</span>
+        <div className="card-footer">
+          <span className="card-footer-note">{notification.isRead ? "Seen" : "Unread"}</span>
+          {notification.priority === "high" ? <span className="tag-pill">Priority</span> : null}
+        </div>
       ) : null}
     </Link>
   );
@@ -283,6 +356,11 @@ export function ProductShell({
   children: React.ReactNode;
   currentUser: SessionUser;
 }) {
+  const hasVerifiedEmail = Boolean(currentUser.emailVerifiedAt);
+  const hasCompletedOnboarding = Boolean(currentUser.onboardingCompletedAt);
+  const hasUnlockedApp = hasVerifiedEmail && hasCompletedOnboarding;
+  const settingsHref = hasUnlockedApp ? "/app/settings" : "/app/settings/account";
+
   return (
     <div className="product-shell">
       <header className="app-topbar">
@@ -295,16 +373,28 @@ export function ProductShell({
         <p className="app-shell-footer-legal">© 2026 Ichigo. Context first.</p>
 
         <div className="app-shell-footer-links">
-          <Link className="inline-link" href="/app/feed">
-            Feed
-          </Link>
-          <Link className="inline-link" href="/app/compose">
-            Write
-          </Link>
-          <Link className="inline-link" href="/app/rooms">
-            Rooms
-          </Link>
-          <Link className="inline-link" href="/app/settings">
+          {hasUnlockedApp ? (
+            <>
+              <Link className="inline-link" href="/app/feed">
+                Feed
+              </Link>
+              <Link className="inline-link" href="/app/compose">
+                Write
+              </Link>
+              <Link className="inline-link" href="/app/rooms">
+                Rooms
+              </Link>
+            </>
+          ) : hasVerifiedEmail ? (
+            <Link className="inline-link" href="/app/onboarding">
+              Continue setup
+            </Link>
+          ) : (
+            <Link className="inline-link" href="/app/verify">
+              Verify email
+            </Link>
+          )}
+          <Link className="inline-link" href={settingsHref}>
             Settings
           </Link>
         </div>
@@ -329,7 +419,7 @@ export function HomePage({ home }: { home: AppHomeView }) {
             </Link>
           }
           eyebrow="Workspace"
-          description="Your home base for what needs attention, where you belong, and where to go next."
+          description={home.wedge.summary}
           title="Home"
         />
 
@@ -354,6 +444,153 @@ export function HomePage({ home }: { home: AppHomeView }) {
             <strong>{home.stats.replyCount}</strong>
             <span>responses you have written</span>
           </article>
+        </section>
+
+        <section className="settings-overview-grid">
+          <article className="panel settings-overview-card card-shell">
+            <div className="panel-title-row">
+              <div>
+                <p className="sidebar-label">Your wedge</p>
+                <h3>{home.wedge.title}</h3>
+              </div>
+              <span className="tag-pill">{describeFocus(home.user.onboardingFocus)}</span>
+            </div>
+            <div className="card-body">
+              <p>{home.user.onboardingGoal || home.wedge.summary}</p>
+              <div className="settings-stat-list">
+                <div className="settings-stat-row">
+                  <span>Preferred mode</span>
+                  <strong>{formatModeLabel(home.user.preferredMode)}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Matched replies</span>
+                  <strong>{home.insights.matchedReplyRate}%</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Modes used</span>
+                  <strong>{home.insights.activeModeCount}</strong>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article className="panel settings-overview-card card-shell">
+            <div className="panel-title-row">
+              <div>
+                <p className="sidebar-label">Core loop</p>
+                <h3>What happens next</h3>
+              </div>
+              <span className="tag-pill">
+                {home.insights.firstPostComplete && home.insights.firstReplyComplete
+                  ? "In motion"
+                  : "Still warming up"}
+              </span>
+            </div>
+            <div className="card-body">
+              <p>Ichigo becomes useful when you ask clearly, get replies back, and learn which tones produce signal instead of noise.</p>
+              <div className="settings-stat-list">
+                <div className="settings-stat-row">
+                  <span>First post</span>
+                  <strong>{home.insights.firstPostComplete ? "Done" : "Still waiting"}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>First reply written</span>
+                  <strong>{home.insights.firstReplyComplete ? "Done" : "Still waiting"}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Unread right now</span>
+                  <strong>{home.stats.unreadNotificationCount}</strong>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article className="panel settings-overview-card card-shell">
+            <div className="panel-title-row">
+              <div>
+                <p className="sidebar-label">Reply health</p>
+                <h3>How your replies are landing</h3>
+              </div>
+              <span className="tag-pill">{describeReplyGuardState(home.replyQualityGuard)}</span>
+            </div>
+            <div className="card-body">
+              <p>{describeReplyGuardSummary(home.replyQualityGuard)}</p>
+              <div className="settings-stat-list">
+                <div className="settings-stat-row">
+                  <span>Recent replies checked</span>
+                  <strong>{home.replyQualityGuard.totalRecentReplies}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Aligned</span>
+                  <strong>{home.replyQualityGuard.alignedCount}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Needs adjustment</span>
+                  <strong>{home.replyQualityGuard.lowAlignmentCount}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Violations</span>
+                  <strong>{home.replyQualityGuard.violationCount}</strong>
+                </div>
+              </div>
+            </div>
+            <div className="card-footer">
+              <span className="card-footer-note">
+                {home.replyQualityGuard.isOnCooldown && home.replyQualityGuard.cooldownEndsAt
+                  ? `Paused until ${formatTime(home.replyQualityGuard.cooldownEndsAt)}`
+                  : "Keep matching the ask before adding speed."}
+              </span>
+            </div>
+          </article>
+
+          {home.productHealth ? (
+            <article className="panel settings-overview-card card-shell">
+              <div className="panel-title-row">
+                <div>
+                  <p className="sidebar-label">Product health</p>
+                  <h3>What the MVP is actually doing</h3>
+                </div>
+                <span className="tag-pill">Admin</span>
+              </div>
+              <div className="card-body">
+                <p>
+                  This is the operator read on whether Ichigo is producing replies, return loops,
+                  and repeat posting instead of just page views.
+                </p>
+                <div className="settings-stat-list">
+                  <div className="settings-stat-row">
+                    <span>Onboarded users</span>
+                    <strong>
+                      {home.productHealth.onboardedUsers}/{home.productHealth.totalUsers}
+                    </strong>
+                  </div>
+                  <div className="settings-stat-row">
+                    <span>Posts with replies</span>
+                    <strong>{home.productHealth.postsWithReplies}</strong>
+                  </div>
+                  <div className="settings-stat-row">
+                    <span>Aligned reply rate</span>
+                    <strong>{home.productHealth.alignedReplyRate}%</strong>
+                  </div>
+                  <div className="settings-stat-row">
+                    <span>First reply speed</span>
+                    <strong>{formatMinutesLabel(home.productHealth.averageFirstReplyMinutes)}</strong>
+                  </div>
+                  <div className="settings-stat-row">
+                    <span>Repeat poster rate</span>
+                    <strong>{home.productHealth.repeatPosterRate}%</strong>
+                  </div>
+                </div>
+                <div className="tag-row compact-tag-row">
+                  {home.productHealth.modeUsage.slice(0, 5).map((entry) => (
+                    <span key={entry.modeId} className="tag-pill">
+                      {formatModeLabel(entry.modeId)} · {entry.count}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </article>
+          ) : null}
         </section>
 
         <section className="panel support-card">
@@ -420,6 +657,15 @@ export function HomePage({ home }: { home: AppHomeView }) {
 
       <aside className="support-column">
         <section className="panel support-card">
+          <p className="sidebar-label">Today</p>
+          <h3>Stay close to the conversations where context matters most.</h3>
+          <p>
+            The fastest way to make Ichigo feel different is to post something real,
+            then judge the replies by whether they fit the ask you actually made.
+          </p>
+        </section>
+
+        <section className="panel support-card">
           <div className="panel-title-row">
             <div>
               <p className="sidebar-label">Your rooms</p>
@@ -485,7 +731,7 @@ export function SettingsPage({
                 <h3>Identity and contact</h3>
               </div>
               <span className="tag-pill">
-                {currentUser.emailVerifiedAt ? "Verified" : "Local account"}
+                {currentUser.emailVerifiedAt ? "Verified" : "Needs verification"}
               </span>
             </div>
             <div className="card-body">
@@ -501,6 +747,14 @@ export function SettingsPage({
                 <div className="settings-stat-row">
                   <span>Email</span>
                   <strong>{currentUser.email}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Starting wedge</span>
+                  <strong>{describeFocus(currentUser.onboardingFocus)}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Preferred mode</span>
+                  <strong>{formatModeLabel(currentUser.preferredMode)}</strong>
                 </div>
                 <div className="settings-stat-row">
                   <span>Bio</span>
@@ -519,11 +773,11 @@ export function SettingsPage({
           </article>
 
           <article className="panel settings-overview-card card-shell">
-            <div className="panel-title-row">
-              <div>
-                <p className="sidebar-label">Security</p>
-                <h3>Sessions and password</h3>
-              </div>
+              <div className="panel-title-row">
+                <div>
+                  <p className="sidebar-label">Security</p>
+                  <h3>Sessions and password</h3>
+                </div>
               <span className="tag-pill">{security.sessions.length} active</span>
             </div>
             <div className="card-body">
@@ -541,8 +795,12 @@ export function SettingsPage({
                   <strong>{otherSessions}</strong>
                 </div>
                 <div className="settings-stat-row">
-                  <span>Fast action</span>
-                  <strong>{otherSessions ? "Review suggested" : "Looks clean"}</strong>
+                  <span>Linked providers</span>
+                  <strong>{security.linkedAccounts.length}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Pending tokens</span>
+                  <strong>{security.availableTokens.length}</strong>
                 </div>
               </div>
             </div>
@@ -579,6 +837,10 @@ export function SettingsPage({
               <strong>{currentUser.role}</strong>
             </div>
             <div className="settings-stat-row">
+              <span>Focus</span>
+              <strong>{describeFocus(currentUser.onboardingFocus)}</strong>
+            </div>
+            <div className="settings-stat-row">
               <span>Reputation</span>
               <strong>{currentUser.reputationScore}</strong>
             </div>
@@ -586,10 +848,12 @@ export function SettingsPage({
         </section>
 
         <section className="panel support-card">
-          <p className="sidebar-label">How to use this</p>
-          <h3>Change profile details here. Review devices and password in Security.</h3>
+          <p className="sidebar-label">Trust state</p>
+          <h3>{currentUser.emailVerifiedAt ? "Your email is already verified." : "Verify the account before you rely on it."}</h3>
           <p>
-            One side is about how you appear to people. The other is about who can get in.
+            {currentUser.emailVerifiedAt
+              ? "That keeps recovery and account ownership simpler when you need it."
+              : "A verified email makes recovery and ownership much easier when something goes wrong."}
           </p>
         </section>
       </aside>
@@ -598,11 +862,17 @@ export function SettingsPage({
 }
 
 export function AccountSettingsPage({
+  blockedUsers,
   currentUser,
   notice,
+  security,
+  verificationPreviewUrl,
 }: {
+  blockedUsers: BlockedUserView[];
   currentUser: SessionUser;
   notice: PageNotice;
+  security: SecurityView;
+  verificationPreviewUrl: string | null;
 }) {
   return (
     <div className="workspace-grid">
@@ -616,6 +886,105 @@ export function AccountSettingsPage({
         <SettingsSubnav active="account" />
 
         <StatusBanner notice={notice} />
+
+        <section className="settings-overview-grid">
+          <article className="panel settings-overview-card card-shell">
+            <div className="panel-title-row">
+              <div>
+                <p className="sidebar-label">Verification</p>
+                <h3>{currentUser.emailVerifiedAt ? "Email confirmed" : "Confirm this email"}</h3>
+              </div>
+              <span className="tag-pill">
+                {currentUser.emailVerifiedAt ? "Verified" : "Pending"}
+              </span>
+            </div>
+            <div className="card-body">
+              <p>
+                {currentUser.emailVerifiedAt
+                  ? "This account already has a verified email attached to it."
+                  : verificationPreviewUrl
+                    ? "SMTP is not active for this environment, so Ichigo is exposing a local verification link instead."
+                    : "Ichigo will send a verification email to this address."}
+              </p>
+              <div className="settings-stat-list">
+                <div className="settings-stat-row">
+                  <span>Current email</span>
+                  <strong>{currentUser.email}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Linked providers</span>
+                  <strong>{security.linkedAccounts.length}</strong>
+                </div>
+                <div className="settings-stat-row">
+                  <span>Open verification items</span>
+                  <strong>
+                    {
+                      security.availableTokens.filter((token) => token.type === "email_verification")
+                        .length
+                    }
+                  </strong>
+                </div>
+              </div>
+            </div>
+            <div className="settings-overview-actions card-footer">
+              {!currentUser.emailVerifiedAt ? (
+                <form action={requestEmailVerificationAction}>
+                  <SubmitButton className="button button-primary" pendingLabel="Generating...">
+                    Generate verification link
+                  </SubmitButton>
+                </form>
+              ) : null}
+
+              {verificationPreviewUrl ? (
+                <Link className="button button-secondary" href={verificationPreviewUrl}>
+                  Open verification link
+                </Link>
+              ) : null}
+            </div>
+          </article>
+
+          <article className="panel settings-overview-card card-shell">
+            <div className="panel-title-row">
+              <div>
+                <p className="sidebar-label">Trust controls</p>
+                <h3>Blocked and muted people</h3>
+              </div>
+              <span className="tag-pill">{blockedUsers.length}</span>
+            </div>
+            <div className="card-body">
+              <p>
+                Keep this list short. Use it when someone consistently breaks the tone, the room, or your boundaries.
+              </p>
+              {blockedUsers.length ? (
+                <div className="session-list">
+                  {blockedUsers.map((entry) => (
+                    <article key={`${entry.type}-${entry.userId}`} className="session-card card-shell">
+                      <div className="panel-title-row">
+                        <div>
+                          <strong>{entry.username}</strong>
+                          <div className="settings-meta">
+                            <span>{entry.type === "block" ? "Blocked" : "Muted"}</span>
+                            <span>Since {formatTime(entry.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <form action={clearRelationshipAction} className="card-footer">
+                        <input name="objectUserId" type="hidden" value={entry.userId} />
+                        <input name="relationshipType" type="hidden" value={entry.type} />
+                        <input name="returnTo" type="hidden" value="/app/settings/account" />
+                        <SubmitButton className="button button-secondary subtle-button" pendingLabel="Updating...">
+                          Remove {entry.type}
+                        </SubmitButton>
+                      </form>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="support-copy">No one is blocked or muted right now.</p>
+              )}
+            </div>
+          </article>
+        </section>
 
         <section className="panel editor-panel form-grid">
           <div className="panel-title-row">
@@ -695,6 +1064,10 @@ export function AccountSettingsPage({
               <span>Bio</span>
               <strong>{currentUser.bio ? "Added" : "Empty"}</strong>
             </div>
+            <div className="settings-stat-row">
+              <span>Preferred mode</span>
+              <strong>{formatModeLabel(currentUser.preferredMode)}</strong>
+            </div>
           </div>
         </section>
 
@@ -705,6 +1078,22 @@ export function AccountSettingsPage({
             Ichigo works better when people can learn how you tend to respond before the
             conversation gets tense.
           </p>
+        </section>
+
+        <section className="panel support-card">
+          <p className="sidebar-label">Connected accounts</p>
+          {security.linkedAccounts.length ? (
+            <div className="settings-stat-list">
+              {security.linkedAccounts.map((account) => (
+                <div key={`${account.provider}-${account.linkedAt}`} className="settings-stat-row">
+                  <span>{account.provider}</span>
+                  <strong>{account.providerEmail ?? "Linked"}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No external sign-in methods are linked yet.</p>
+          )}
         </section>
 
         <section className="panel support-card">
@@ -753,6 +1142,16 @@ export function SecurityPage({
             <h3>{otherSessions.length}</h3>
             <p>Sessions that are not this current browser.</p>
           </article>
+          <article className="panel settings-card card-shell">
+            <p className="sidebar-label">Linked accounts</p>
+            <h3>{security.linkedAccounts.length}</h3>
+            <p>External providers tied to this account.</p>
+          </article>
+          <article className="panel settings-card card-shell">
+            <p className="sidebar-label">Open recovery items</p>
+            <h3>{security.availableTokens.length}</h3>
+            <p>Verification or reset tokens still active in this environment.</p>
+          </article>
         </section>
 
         <section className="panel editor-panel form-grid">
@@ -764,27 +1163,24 @@ export function SecurityPage({
           </div>
 
           <form action={changePasswordAction} className="inline-form-stack">
-            <input
+            <PasswordField
               className="text-input"
               name="currentPassword"
               placeholder="Current password"
-              type="password"
               required
             />
-            <input
+            <PasswordField
               className="text-input"
               minLength={8}
               name="nextPassword"
               placeholder="New password"
-              type="password"
               required
             />
-            <input
+            <PasswordField
               className="text-input"
               minLength={8}
               name="confirmPassword"
               placeholder="Confirm new password"
-              type="password"
               required
             />
             <SubmitButton className="button button-primary" pendingLabel="Updating...">
@@ -867,6 +1263,38 @@ export function SecurityPage({
             </div>
           </div>
         </section>
+
+        <section className="panel support-card">
+          <p className="sidebar-label">Linked sign-in</p>
+          {security.linkedAccounts.length ? (
+            <div className="settings-stat-list">
+              {security.linkedAccounts.map((account) => (
+                <div key={`${account.provider}-${account.linkedAt}`} className="settings-stat-row">
+                  <span>{account.provider}</span>
+                  <strong>{account.providerEmail ?? "Linked"}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No external sign-in methods are linked to this account yet.</p>
+          )}
+        </section>
+
+        <section className="panel support-card">
+          <p className="sidebar-label">Recovery state</p>
+          {security.availableTokens.length ? (
+            <div className="settings-stat-list">
+              {security.availableTokens.map((token) => (
+                <div key={`${token.type}-${token.expiresAt}`} className="settings-stat-row">
+                  <span>{token.type === "email_verification" ? "Email verification" : "Password reset"}</span>
+                  <strong>Expires {formatTime(token.expiresAt)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No open verification or recovery tokens right now.</p>
+          )}
+        </section>
       </aside>
     </div>
   );
@@ -899,7 +1327,13 @@ export function FeedPage({
 
         <div className="stack-list">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} showDelete={post.author.id === currentUser.id} />
+            <PostCard
+              key={post.id}
+              post={post}
+              relationshipReturnTo="/app/feed"
+              showDelete={post.author.id === currentUser.id}
+              viewerUserId={currentUser.id}
+            />
           ))}
         </div>
       </section>
@@ -907,9 +1341,9 @@ export function FeedPage({
       <aside className="support-column">
         <section className="panel support-card">
           <p className="sidebar-label">Why it works</p>
-          <h3>The ask stays attached to the post</h3>
+          <h3>{currentUser.onboardingGoal || "The ask stays attached to the post."}</h3>
           <p>
-            People do not have to guess what kind of response belongs here.
+            People do not have to guess what kind of response belongs here. The mode keeps the thread honest about what would actually help.
           </p>
         </section>
 
@@ -943,7 +1377,13 @@ export function FeedPage({
   );
 }
 
-export function ComposePage({ rooms }: { rooms: RoomView[] }) {
+export function ComposePage({
+  currentUser,
+  rooms,
+}: {
+  currentUser: SessionUser;
+  rooms: RoomView[];
+}) {
   return (
     <div className="workspace-grid">
       <section className="content-column">
@@ -953,18 +1393,49 @@ export function ComposePage({ rooms }: { rooms: RoomView[] }) {
           title="Write a post"
         />
 
+        <section className="panel support-card">
+          <div className="panel-title-row">
+            <div>
+              <p className="sidebar-label">Your starting point</p>
+              <h3>{currentUser.onboardingGoal || "Make the ask explicit before the thread begins."}</h3>
+            </div>
+            <span className="tag-pill">{formatModeLabel(currentUser.preferredMode)}</span>
+          </div>
+          <p>
+            The strongest posts here do two things clearly: they say what is happening,
+            and they say how people should meet it.
+          </p>
+        </section>
+
+        <ComposeKickstart
+          focus={currentUser.onboardingFocus}
+          preferredMode={currentUser.preferredMode}
+        />
+
         <form action={createPostAction} className="panel editor-panel form-grid">
           <div>
             <label className="input-label" htmlFor="content">
               What do you want to say?
             </label>
-            <textarea id="content" className="composer-textarea" name="content" rows={8} required />
+            <textarea
+              id="content"
+              className="composer-textarea"
+              name="content"
+              placeholder="What are you trying to decide, make, understand, or get through?"
+              rows={8}
+              required
+            />
           </div>
 
           <div className="mode-choice-grid">
             {modes.map((mode) => (
               <label key={mode.id} className="mode-option radio-option" data-mode={mode.id}>
-                <input defaultChecked={mode.id === "soft-truth"} name="responseMode" type="radio" value={mode.id} />
+                <input
+                  defaultChecked={mode.id === (currentUser.preferredMode ?? "soft-truth")}
+                  name="responseMode"
+                  type="radio"
+                  value={mode.id}
+                />
                 <span className="legend-dot" style={{ background: mode.accent }} />
                 <div>
                   <strong>{mode.name}</strong>
@@ -1047,10 +1518,16 @@ export function ComposePage({ rooms }: { rooms: RoomView[] }) {
 
 export function PostDetailPage({
   currentUser,
+  isFresh = false,
   post,
+  replyError,
+  replyGuard,
 }: {
   currentUser: SessionUser;
+  isFresh?: boolean;
   post: PostDetail;
+  replyError: "reply-quality-cooldown" | "rate-limited" | null;
+  replyGuard: ReplyQualityGuardView;
 }) {
   return (
     <div className="workspace-grid">
@@ -1061,30 +1538,48 @@ export function PostDetailPage({
           title="Conversation"
         />
 
-        <PostCard post={post} showDelete={post.author.id === currentUser.id} />
+        {isFresh && post.author.id === currentUser.id ? (
+          <div className="status-banner">
+            Your tone is set. Replies to this thread will be read against the contract you just chose.
+          </div>
+        ) : null}
+
+        {replyError === "reply-quality-cooldown" || replyGuard.isOnCooldown ? (
+          <div className="status-banner status-banner-error">
+            Replying is paused for now.
+            {replyGuard.cooldownEndsAt
+              ? ` You can try again after ${formatTime(replyGuard.cooldownEndsAt)}.`
+              : " Let the cooldown finish, then try again."}
+          </div>
+        ) : null}
+
+        {replyError === "rate-limited" ? (
+          <div className="status-banner status-banner-error">
+            You are replying too quickly right now. Pause for a bit, then try again.
+          </div>
+        ) : null}
+
+        <PostCard
+          post={post}
+          relationshipReturnTo={`/app/posts/${post.id}`}
+          showDelete={post.author.id === currentUser.id}
+          viewerUserId={currentUser.id}
+        />
 
         <section className="panel editor-panel">
           <div className="panel-title-row">
             <div>
               <p className="sidebar-label">Write a reply</p>
-              <h3>{post.responsePrompt}</h3>
+              <h3>Reply with the contract in view</h3>
             </div>
             <span>{post.responseGuidance}</span>
           </div>
-
-          <form action={createCommentAction} className="inline-form-stack">
-            <input name="postId" type="hidden" value={post.id} />
-            <textarea
-              className="composer-textarea"
-              name="content"
-              placeholder="Reply in the tone this post asked for."
-              rows={5}
-              required
-            />
-            <SubmitButton className="button button-primary" pendingLabel="Posting reply...">
-              Send reply
-            </SubmitButton>
-          </form>
+          <ReplyAssistantForm
+            cooldownEndsAt={replyGuard.isOnCooldown ? replyGuard.cooldownEndsAt : null}
+            postId={post.id}
+            responseGuidance={post.responseGuidance}
+            responsePrompt={post.responsePrompt}
+          />
         </section>
 
         <div className="stack-list">
@@ -1100,6 +1595,60 @@ export function PostDetailPage({
           <h3>{post.responsePrompt}</h3>
           <p>{post.responseGuidance}</p>
         </section>
+
+        {post.roomRules ? (
+          <section className="panel support-card">
+            <p className="sidebar-label">Room rules</p>
+            <h3>Shared context around this thread</h3>
+            <p>{post.roomRules}</p>
+          </section>
+        ) : null}
+
+        <section className="panel support-card">
+          <p className="sidebar-label">Reply quality</p>
+          <div className="settings-stat-list">
+            <div className="settings-stat-row">
+              <span>Total replies</span>
+              <strong>{post.alignmentSummary.total}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Good fits</span>
+              <strong>{post.alignmentSummary.matches + post.alignmentSummary.acceptable}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Average score</span>
+              <strong>{post.alignmentSummary.averageScore}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Violations</span>
+              <strong>{post.alignmentSummary.violations}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel support-card">
+          <p className="sidebar-label">Your current reply state</p>
+          <h3>{describeReplyGuardState(replyGuard)}</h3>
+          <p>{describeReplyGuardSummary(replyGuard)}</p>
+          <div className="settings-stat-list">
+            <div className="settings-stat-row">
+              <span>Aligned recently</span>
+              <strong>{replyGuard.alignedCount}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Needs adjustment</span>
+              <strong>{replyGuard.lowAlignmentCount}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Cooldown</span>
+              <strong>
+                {replyGuard.isOnCooldown && replyGuard.cooldownEndsAt
+                  ? formatTime(replyGuard.cooldownEndsAt)
+                  : "Clear"}
+              </strong>
+            </div>
+          </div>
+        </section>
       </aside>
     </div>
   );
@@ -1110,8 +1659,8 @@ export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
   const publicRooms = rooms.filter((room) => room.visibility === "public");
 
   return (
-    <div className="workspace-grid">
-      <section className="content-column">
+    <div className="workspace-grid rooms-page-shell">
+      <section className="content-column rooms-content-column">
         <PageIntro
           actions={
             <a className="button button-primary" href="#create-room">
@@ -1142,15 +1691,17 @@ export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
         </section>
 
         {rooms.length ? (
-          <div className="room-grid">
+          <div className="room-grid room-grid-rooms">
             {rooms.map((room) => (
-              <article key={room.id} className="panel room-card card-shell">
-                <div className="panel-title-row">
-                  <div>
+              <article key={room.id} className="panel room-card room-card-shell card-shell">
+                <div className="panel-title-row room-card-header">
+                  <div className="room-card-heading">
                     <p className="sidebar-label">{describeVisibility(room.visibility)}</p>
                     <h3>{room.name}</h3>
                   </div>
-                  <span className="tag-pill">{room.isMember ? "Joined" : "Open"}</span>
+                  <span className="tag-pill room-card-status">
+                    {room.isMember ? "Joined" : "Open"}
+                  </span>
                 </div>
                 <div className="card-body">
                   <p>{room.description}</p>
@@ -1194,8 +1745,12 @@ export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
         )}
       </section>
 
-      <aside className="support-column">
-        <form action={createRoomAction} className="panel editor-panel form-grid" id="create-room">
+      <aside className="support-column rooms-support-column">
+        <form
+          action={createRoomAction}
+          className="panel editor-panel form-grid room-create-panel"
+          id="create-room"
+        >
           <div className="panel-title-row">
             <div>
               <p className="sidebar-label">Create room</p>
@@ -1368,6 +1923,7 @@ export function RoomDetailPage({
 
 export function NotificationsPage({ notifications }: { notifications: NotificationView[] }) {
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
+  const priorityCount = notifications.filter((notification) => notification.priority === "high").length;
 
   return (
     <div className="workspace-grid">
@@ -1411,6 +1967,10 @@ export function NotificationsPage({ notifications }: { notifications: Notificati
             <div className="settings-stat-row">
               <span>Unread</span>
               <strong>{unreadCount}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Priority</span>
+              <strong>{priorityCount}</strong>
             </div>
           </div>
         </section>
@@ -1512,6 +2072,10 @@ export function ProfilePage({ profile }: { profile: ProfileView }) {
               <span>Role</span>
               <strong>{profile.user.role}</strong>
             </div>
+            <div className="settings-stat-row">
+              <span>Focus</span>
+              <strong>{describeFocus(profile.user.onboardingFocus)}</strong>
+            </div>
           </div>
         </section>
 
@@ -1545,16 +2109,51 @@ export function ProfilePage({ profile }: { profile: ProfileView }) {
             <p className="support-copy">No recent notifications to surface here.</p>
           )}
         </section>
+
+        <section className="panel support-card">
+          <p className="sidebar-label">Trust controls</p>
+          {profile.blockedUsers.length ? (
+            <div className="session-list">
+              {profile.blockedUsers.map((entry) => (
+                <article key={`${entry.type}-${entry.userId}`} className="session-card card-shell">
+                  <div className="panel-title-row">
+                    <div>
+                      <strong>{entry.username}</strong>
+                      <div className="settings-meta">
+                        <span>{entry.type === "block" ? "Blocked" : "Muted"}</span>
+                        <span>Since {formatTime(entry.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <form action={clearRelationshipAction} className="card-footer">
+                    <input name="objectUserId" type="hidden" value={entry.userId} />
+                    <input name="relationshipType" type="hidden" value={entry.type} />
+                    <input name="returnTo" type="hidden" value="/app/profile" />
+                    <SubmitButton className="button button-secondary subtle-button" pendingLabel="Updating...">
+                      Remove {entry.type}
+                    </SubmitButton>
+                  </form>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="support-copy">No one is blocked or muted from your account.</p>
+          )}
+        </section>
       </aside>
     </div>
   );
 }
 
 export function ModerationPage({
+  flaggedComments,
   currentUser,
+  overview,
   reports,
 }: {
+  flaggedComments: FlaggedCommentView[];
   currentUser: SessionUser;
+  overview: ModerationOverviewView;
   reports: ReportView[];
 }) {
   if (currentUser.role === "user") {
@@ -1575,6 +2174,84 @@ export function ModerationPage({
           title="Safety"
         />
 
+        <section className="settings-grid profile-summary-grid">
+          <article className="panel settings-card card-shell">
+            <p className="sidebar-label">Open reports</p>
+            <h3>{overview.openReports}</h3>
+            <p>Items waiting for a first moderation pass.</p>
+          </article>
+          <article className="panel settings-card card-shell">
+            <p className="sidebar-label">Flagged replies</p>
+            <h3>{overview.flaggedComments}</h3>
+            <p>Replies still sitting in the queue.</p>
+          </article>
+          <article className="panel settings-card card-shell">
+            <p className="sidebar-label">Auto-flagged</p>
+            <h3>{overview.autoFlaggedComments}</h3>
+            <p>Replies Ichigo caught before anyone reported them.</p>
+          </article>
+          <article className="panel settings-card card-shell">
+            <p className="sidebar-label">Repeat offenders</p>
+            <h3>{overview.repeatOffenders}</h3>
+            <p>Accounts with flagged replies still unresolved.</p>
+          </article>
+        </section>
+
+        {flaggedComments.length ? (
+          <section className="panel support-card">
+            <div className="panel-title-row">
+              <div>
+                <p className="sidebar-label">Auto-flagged queue</p>
+                <h3>Replies that need a moderation call</h3>
+              </div>
+            </div>
+            <div className="stack-list">
+              {flaggedComments.map((comment) => (
+                <article key={comment.id} className="panel moderation-card card-shell">
+                  <div className="panel-title-row">
+                    <div>
+                      <p className="sidebar-label">
+                        {describeAlignment(comment.alignmentClassification)} · {comment.modeAlignmentScore}/100
+                      </p>
+                      <h3>{comment.author.username}</h3>
+                    </div>
+                    <span>{formatTime(comment.createdAt)}</span>
+                  </div>
+                  <div className="card-body">
+                    <p>{comment.content}</p>
+                    <p className="support-copy">Post context: {comment.postPreview}</p>
+                    <div className="settings-stat-list">
+                      <div className="settings-stat-row">
+                        <span>Open reports</span>
+                        <strong>{comment.openReportCount}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="moderation-actions card-footer">
+                    <Link className="button button-secondary" href={`/app/posts/${comment.postId}`}>
+                      Open thread
+                    </Link>
+                    <form action={updateCommentModerationStatusAction}>
+                      <input name="commentId" type="hidden" value={comment.id} />
+                      <input name="status" type="hidden" value="visible" />
+                      <SubmitButton className="button button-secondary" pendingLabel="Updating...">
+                        Restore
+                      </SubmitButton>
+                    </form>
+                    <form action={updateCommentModerationStatusAction}>
+                      <input name="commentId" type="hidden" value={comment.id} />
+                      <input name="status" type="hidden" value="hidden" />
+                      <SubmitButton className="button button-secondary" pendingLabel="Updating...">
+                        Hide reply
+                      </SubmitButton>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {reports.length ? (
           <div className="stack-list">
             {reports.map((report) => (
@@ -1590,7 +2267,28 @@ export function ModerationPage({
                 </div>
                 <div className="card-body">
                   <p>Reported by {report.reporter.username}</p>
+                  {report.moderatorNote ? (
+                    <p className="support-copy">Moderator note: {report.moderatorNote}</p>
+                  ) : null}
                 </div>
+                <form action={updateReportStatusAction} className="inline-form-stack">
+                  <input name="reportId" type="hidden" value={report.id} />
+                  <input
+                    name="status"
+                    type="hidden"
+                    value={report.status === "open" ? "reviewing" : report.status}
+                  />
+                  <textarea
+                    className="composer-textarea compact-textarea"
+                    defaultValue={report.moderatorNote}
+                    name="moderatorNote"
+                    placeholder="Add a note for the moderation record."
+                    rows={3}
+                  />
+                  <SubmitButton className="button button-secondary subtle-button" pendingLabel="Saving...">
+                    Save note
+                  </SubmitButton>
+                </form>
                 <div className="moderation-actions card-footer">
                   {(["open", "reviewing", "resolved", "dismissed"] as const).map((status) => (
                     <form key={status} action={updateReportStatusAction}>
@@ -1624,11 +2322,15 @@ export function ModerationPage({
             </div>
             <div className="settings-stat-row">
               <span>Open</span>
-              <strong>{reports.filter((report) => report.status === "open").length}</strong>
+              <strong>{overview.openReports}</strong>
             </div>
             <div className="settings-stat-row">
               <span>Reviewing</span>
-              <strong>{reports.filter((report) => report.status === "reviewing").length}</strong>
+              <strong>{overview.reviewingReports}</strong>
+            </div>
+            <div className="settings-stat-row">
+              <span>Hidden replies</span>
+              <strong>{overview.hiddenComments}</strong>
             </div>
           </div>
         </section>
@@ -1648,10 +2350,14 @@ export function ModerationPage({
 
 function PostCard({
   post,
+  relationshipReturnTo,
   showDelete = false,
+  viewerUserId,
 }: {
   post: FeedPost;
+  relationshipReturnTo?: string;
   showDelete?: boolean;
+  viewerUserId?: string;
 }) {
   const mode = modes.find((entry) => entry.id === post.modeId)!;
 
@@ -1692,6 +2398,35 @@ function PostCard({
         <Link className="inline-link" href={`/app/posts/${post.id}`}>
           View thread
         </Link>
+
+        {viewerUserId && viewerUserId !== post.author.id ? (
+          <div className="comment-actions-grid">
+            <form action={setRelationshipAction}>
+              <input name="objectUserId" type="hidden" value={post.author.id} />
+              <input name="relationshipType" type="hidden" value="mute" />
+              <input
+                name="returnTo"
+                type="hidden"
+                value={relationshipReturnTo ?? `/app/posts/${post.id}`}
+              />
+              <SubmitButton className="button button-secondary subtle-button" pendingLabel="Saving...">
+                Mute author
+              </SubmitButton>
+            </form>
+            <form action={setRelationshipAction}>
+              <input name="objectUserId" type="hidden" value={post.author.id} />
+              <input name="relationshipType" type="hidden" value="block" />
+              <input
+                name="returnTo"
+                type="hidden"
+                value={relationshipReturnTo ?? `/app/posts/${post.id}`}
+              />
+              <SubmitButton className="button button-secondary subtle-button" pendingLabel="Saving...">
+                Block author
+              </SubmitButton>
+            </form>
+          </div>
+        ) : null}
 
         {showDelete ? (
           <form action={deletePostAction}>
@@ -1765,6 +2500,27 @@ function CommentCard({
           Send report
         </SubmitButton>
       </form>
+
+      {comment.author.id !== currentUser.id ? (
+        <div className="comment-actions-grid">
+          <form action={setRelationshipAction}>
+            <input name="objectUserId" type="hidden" value={comment.author.id} />
+            <input name="relationshipType" type="hidden" value="mute" />
+            <input name="returnTo" type="hidden" value={`/app/posts/${postId}`} />
+            <SubmitButton className="button button-secondary subtle-button" pendingLabel="Saving...">
+              Mute author
+            </SubmitButton>
+          </form>
+          <form action={setRelationshipAction}>
+            <input name="objectUserId" type="hidden" value={comment.author.id} />
+            <input name="relationshipType" type="hidden" value="block" />
+            <input name="returnTo" type="hidden" value={`/app/posts/${postId}`} />
+            <SubmitButton className="button button-secondary subtle-button" pendingLabel="Saving...">
+              Block author
+            </SubmitButton>
+          </form>
+        </div>
+      ) : null}
     </article>
   );
 }

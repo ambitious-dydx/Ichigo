@@ -5,30 +5,42 @@ import { redirect } from "next/navigation";
 import type { ModeId } from "../modes";
 import {
   changePassword,
+  finishOnboarding,
   getCurrentSessionId,
+  requestEmailVerification,
+  requestPasswordReset,
   registerUser,
   requireCurrentUser,
+  requireOnboardedUser,
+  resetPasswordWithToken,
   revokeUserSession,
   signInUser,
   signOutOtherSessions,
   signOutUser,
   updateAccountDetails,
+  verifyEmailToken,
 } from "./auth";
 import {
+  clearUserRelationship,
+  createProductEvent,
   createCommentRecord,
   createPostRecord,
   createReportRecord,
   createRoomRecord,
   deleteCommentRecord,
   deletePostRecord,
+  hitRateLimit,
   joinRoom,
   leaveRoom,
   markNotificationsRead,
   rateCommentRecord,
+  setUserRelationship,
+  updateCommentModerationStatus,
   updateProfile,
   updateReportStatus,
+  isReplyQualityCooldownError,
 } from "./repository";
-import type { RatingType, ReportStatus, Visibility } from "./types";
+import type { CommentStatus, FeedbackFocus, RatingType, ReportStatus, Visibility } from "./types";
 
 function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -62,6 +74,23 @@ function isReportStatus(value: string): value is ReportStatus {
   return ["open", "reviewing", "resolved", "dismissed"].includes(value);
 }
 
+function isCommentStatus(value: string): value is CommentStatus {
+  return ["visible", "flagged", "hidden"].includes(value);
+}
+
+function isFeedbackFocus(value: string): value is FeedbackFocus {
+  return ["founder", "creator", "reflection", "support"].includes(value);
+}
+
+function guardRateLimit(userId: string, action: string, limit: number, windowMs: number) {
+  return hitRateLimit({
+    scopeKey: userId,
+    action,
+    limit,
+    windowMs,
+  });
+}
+
 export async function loginAction(formData: FormData) {
   const identifier = asString(formData.get("identifier")) || asString(formData.get("email"));
   const password = asString(formData.get("password"));
@@ -76,16 +105,33 @@ export async function loginAction(formData: FormData) {
     redirect("/login?error=invalid-credentials");
   }
 
-  redirect("/app");
+  if (!result.user.emailVerifiedAt) {
+    try {
+      const delivery = await requestEmailVerification(result.user.id);
+      const previewParam = delivery.previewUrl
+        ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+        : "";
+      redirect(`/app/verify?success=verification-link-created${previewParam}`);
+    } catch {
+      redirect("/app/verify?error=delivery-failed");
+    }
+  }
+
+  redirect(result.user.onboardingCompletedAt ? "/app" : "/app/onboarding");
 }
 
 export async function registerAction(formData: FormData) {
   const username = asString(formData.get("username"));
   const email = asString(formData.get("email"));
   const password = asString(formData.get("password"));
+  const confirmPassword = asString(formData.get("confirmPassword"));
 
-  if (!username || !email || password.length < 8) {
+  if (!username || !email || password.length < 8 || !confirmPassword) {
     redirect("/register?error=invalid-input");
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/register?error=password-mismatch");
   }
 
   const result = await registerUser({ username, email, password });
@@ -94,7 +140,12 @@ export async function registerAction(formData: FormData) {
     redirect(`/register?error=${result.error}`);
   }
 
-  redirect("/app");
+  try {
+    await requestEmailVerification(result.user.id);
+    redirect("/login?success=verification-email-sent");
+  } catch {
+    redirect("/login?error=verification-email-failed");
+  }
 }
 
 export async function logoutAction() {
@@ -103,7 +154,7 @@ export async function logoutAction() {
 }
 
 export async function createPostAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const content = asString(formData.get("content"));
   const responseMode = asString(formData.get("responseMode"));
   const visibility = asString(formData.get("visibility"));
@@ -115,6 +166,12 @@ export async function createPostAction(formData: FormData) {
     redirect("/app/compose?error=invalid-post");
   }
 
+  const rateLimit = guardRateLimit(currentUser.id, "create-post", 8, 60 * 60 * 1000);
+
+  if (rateLimit.blocked) {
+    redirect("/app/compose?error=rate-limited");
+  }
+
   const postId = createPostRecord({
     userId: currentUser.id,
     content,
@@ -124,11 +181,17 @@ export async function createPostAction(formData: FormData) {
     isAnonymous,
     tags,
   });
+  createProductEvent({
+    userId: currentUser.id,
+    eventName: "post.created",
+    route: "/app/compose",
+    metadata: { responseMode, visibility, roomId: roomId || null },
+  });
 
   revalidatePath("/app/feed");
   revalidatePath("/app");
   revalidatePath("/app/profile");
-  redirect(`/app/posts/${postId}`);
+  redirect(`/app/posts/${postId}?fresh=1`);
 }
 
 export async function deletePostAction(formData: FormData) {
@@ -147,7 +210,7 @@ export async function deletePostAction(formData: FormData) {
 }
 
 export async function createCommentAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const postId = asString(formData.get("postId"));
   const content = asString(formData.get("content"));
 
@@ -155,10 +218,36 @@ export async function createCommentAction(formData: FormData) {
     return;
   }
 
-  createCommentRecord({
-    postId,
+  const rateLimit = guardRateLimit(currentUser.id, "create-comment", 24, 60 * 60 * 1000);
+
+  if (rateLimit.blocked) {
+    redirect(`/app/posts/${postId}?error=rate-limited`);
+  }
+
+  let result;
+
+  try {
+    result = createCommentRecord({
+      postId,
+      userId: currentUser.id,
+      content,
+    });
+  } catch (error) {
+    if (isReplyQualityCooldownError(error)) {
+      redirect(`/app/posts/${postId}?error=reply-quality-cooldown`);
+    }
+
+    throw error;
+  }
+  createProductEvent({
     userId: currentUser.id,
-    content,
+    eventName: "comment.created",
+    route: `/app/posts/${postId}`,
+    metadata: {
+      alignment: result.alignment.classification,
+      score: result.alignment.alignmentScore,
+      status: result.status,
+    },
   });
 
   revalidatePath(`/app/posts/${postId}`);
@@ -204,7 +293,7 @@ export async function deleteCommentAction(formData: FormData) {
 }
 
 export async function rateCommentAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const postId = asString(formData.get("postId"));
   const commentId = asString(formData.get("commentId"));
   const ratingType = asString(formData.get("ratingType"));
@@ -226,13 +315,19 @@ export async function rateCommentAction(formData: FormData) {
 }
 
 export async function reportAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const targetType = asString(formData.get("targetType"));
   const targetId = asString(formData.get("targetId"));
   const reason = asString(formData.get("reason"));
 
   if (!targetId || !reason || (targetType !== "post" && targetType !== "comment")) {
     return;
+  }
+
+  const rateLimit = guardRateLimit(currentUser.id, "create-report", 12, 60 * 60 * 60 * 1000);
+
+  if (rateLimit.blocked) {
+    redirect("/app/notifications?error=report-rate-limited");
   }
 
   createReportRecord({
@@ -246,7 +341,7 @@ export async function reportAction(formData: FormData) {
 }
 
 export async function createRoomAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const name = asString(formData.get("name"));
   const description = asString(formData.get("description"));
   const rules = asString(formData.get("rules"));
@@ -258,6 +353,12 @@ export async function createRoomAction(formData: FormData) {
 
   if (!name || !description || !isVisibility(visibility)) {
     redirect("/app/rooms?error=invalid-room");
+  }
+
+  const rateLimit = guardRateLimit(currentUser.id, "create-room", 4, 24 * 60 * 60 * 1000);
+
+  if (rateLimit.blocked) {
+    redirect("/app/rooms?error=rate-limited");
   }
 
   createRoomRecord({
@@ -279,7 +380,7 @@ function modesDefault() {
 }
 
 export async function joinRoomAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const roomId = asString(formData.get("roomId"));
 
   if (!roomId) {
@@ -293,7 +394,7 @@ export async function joinRoomAction(formData: FormData) {
 }
 
 export async function leaveRoomAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const roomId = asString(formData.get("roomId"));
 
   if (!roomId) {
@@ -307,7 +408,7 @@ export async function leaveRoomAction(formData: FormData) {
 }
 
 export async function updateProfileAction(formData: FormData) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const bio = asString(formData.get("bio"));
 
   updateProfile({
@@ -329,12 +430,35 @@ export async function updateReportStatusAction(formData: FormData) {
 
   const reportId = asString(formData.get("reportId"));
   const status = asString(formData.get("status"));
+  const moderatorNote = asString(formData.get("moderatorNote"));
 
   if (!reportId || !isReportStatus(status)) {
     return;
   }
 
-  updateReportStatus(reportId, status);
+  updateReportStatus(reportId, status, moderatorNote);
+  revalidatePath("/app/moderation");
+}
+
+export async function updateCommentModerationStatusAction(formData: FormData) {
+  const currentUser = await requireCurrentUser();
+
+  if (currentUser.role === "user") {
+    redirect("/app/feed");
+  }
+
+  const commentId = asString(formData.get("commentId"));
+  const status = asString(formData.get("status"));
+
+  if (!commentId || !isCommentStatus(status)) {
+    return;
+  }
+
+  updateCommentModerationStatus({
+    actorUserId: currentUser.id,
+    commentId,
+    status,
+  });
   revalidatePath("/app/moderation");
 }
 
@@ -359,6 +483,18 @@ export async function updateAccountAction(formData: FormData) {
 
   if ("error" in result) {
     redirect(`/app/settings/account?error=${result.error}`);
+  }
+
+  if (result.user && !result.user.emailVerifiedAt) {
+    try {
+      const delivery = await requestEmailVerification(currentUser.id);
+      const previewParam = delivery.previewUrl
+        ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+        : "";
+      redirect(`/app/settings/account?success=account-saved${previewParam}`);
+    } catch {
+      redirect("/app/settings/account?success=account-saved-verification-failed");
+    }
   }
 
   revalidatePath("/app");
@@ -416,4 +552,159 @@ export async function revokeSessionAction(formData: FormData) {
 
   revalidatePath("/app/settings/security");
   redirect("/app/settings/security?success=session-revoked");
+}
+
+export async function completeOnboardingAction(formData: FormData) {
+  const currentUser = await requireCurrentUser();
+  const focus = asString(formData.get("focus"));
+  const goal = asString(formData.get("goal"));
+  const preferredMode = asString(formData.get("preferredMode"));
+
+  if (!isFeedbackFocus(focus) || !goal || !isModeId(preferredMode)) {
+    redirect("/app/onboarding?error=invalid-input");
+  }
+
+  await finishOnboarding({
+    userId: currentUser.id,
+    focus,
+    goal,
+    preferredMode,
+  });
+
+  revalidatePath("/app");
+  revalidatePath("/app/feed");
+  revalidatePath("/app/compose");
+  redirect("/app");
+}
+
+export async function requestEmailVerificationAction(formData: FormData) {
+  const currentUser = await requireCurrentUser();
+  const redirectTo = asString(formData.get("redirectTo")) || "/app/settings/account";
+
+  try {
+    const delivery = await requestEmailVerification(currentUser.id);
+    const previewParam = delivery.previewUrl
+      ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+      : "";
+    redirect(`${redirectTo}?success=verification-link-created${previewParam}`);
+  } catch {
+    redirect(`${redirectTo}?error=delivery-failed`);
+  }
+}
+
+export async function verifyEmailAction(formData: FormData) {
+  const token = asString(formData.get("token"));
+
+  if (!token) {
+    redirect("/app/settings/account?error=invalid-token");
+  }
+
+  const result = await verifyEmailToken(token);
+
+  if ("error" in result) {
+    redirect("/app/settings/account?error=invalid-token");
+  }
+
+  revalidatePath("/app/settings");
+  revalidatePath("/app/settings/account");
+  redirect("/app/settings/account?success=email-verified");
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const identifier = asString(formData.get("identifier"));
+
+  if (!identifier) {
+    redirect("/forgot-password?error=missing-fields");
+  }
+
+  let delivery = null;
+
+  try {
+    delivery = await requestPasswordReset(identifier);
+  } catch {
+    redirect("/forgot-password?error=delivery-failed");
+  }
+
+  if (!delivery) {
+    redirect("/forgot-password?success=reset-sent");
+  }
+
+  const previewParam = delivery.previewUrl
+    ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+    : "";
+  redirect(`/forgot-password?success=reset-sent${previewParam}`);
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = asString(formData.get("token"));
+  const nextPassword = asString(formData.get("nextPassword"));
+  const confirmPassword = asString(formData.get("confirmPassword"));
+
+  if (!token || !nextPassword || !confirmPassword) {
+    redirect("/reset-password?error=missing-fields");
+  }
+
+  if (nextPassword !== confirmPassword) {
+    redirect(`/reset-password?token=${encodeURIComponent(token)}&error=password-mismatch`);
+  }
+
+  const result = await resetPasswordWithToken({ token, nextPassword });
+
+  if ("error" in result) {
+    redirect(
+      `/reset-password${token ? `?token=${encodeURIComponent(token)}&` : "?"}error=${result.error}`,
+    );
+  }
+
+  redirect("/login?success=password-reset");
+}
+
+export async function setRelationshipAction(formData: FormData) {
+  const currentUser = await requireOnboardedUser();
+  const objectUserId = asString(formData.get("objectUserId"));
+  const relationshipType = asString(formData.get("relationshipType"));
+  const returnTo = asString(formData.get("returnTo"));
+
+  if (!objectUserId || (relationshipType !== "block" && relationshipType !== "mute")) {
+    return;
+  }
+
+  setUserRelationship({
+    subjectUserId: currentUser.id,
+    objectUserId,
+    relationshipType,
+  });
+
+  revalidatePath("/app/feed");
+  revalidatePath("/app/profile");
+  revalidatePath("/app/settings/account");
+
+  if (returnTo) {
+    redirect(returnTo);
+  }
+}
+
+export async function clearRelationshipAction(formData: FormData) {
+  const currentUser = await requireOnboardedUser();
+  const objectUserId = asString(formData.get("objectUserId"));
+  const relationshipType = asString(formData.get("relationshipType"));
+  const returnTo = asString(formData.get("returnTo"));
+
+  if (!objectUserId || (relationshipType !== "block" && relationshipType !== "mute")) {
+    return;
+  }
+
+  clearUserRelationship({
+    subjectUserId: currentUser.id,
+    objectUserId,
+    relationshipType,
+  });
+
+  revalidatePath("/app/feed");
+  revalidatePath("/app/profile");
+  revalidatePath("/app/settings/account");
+
+  if (returnTo) {
+    redirect(returnTo);
+  }
 }

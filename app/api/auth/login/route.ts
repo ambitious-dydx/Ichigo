@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { signInUser } from "../../../../src/server/auth";
+import { requestEmailVerification, signInUser } from "../../../../src/server/auth";
 import { jsonError } from "../../../../src/server/http";
 
 export async function POST(request: Request) {
@@ -20,5 +20,20 @@ export async function POST(request: Request) {
     return jsonError("Invalid credentials", 401);
   }
 
-  return NextResponse.json({ user: result.user });
+  let previewUrl: string | null = null;
+
+  if (!result.user.emailVerifiedAt) {
+    try {
+      const delivery = await requestEmailVerification(result.user.id);
+      previewUrl = delivery.previewUrl;
+    } catch {
+      previewUrl = null;
+    }
+  }
+
+  return NextResponse.json({
+    user: result.user,
+    requiresVerification: !result.user.emailVerifiedAt,
+    previewUrl,
+  });
 }

@@ -67,6 +67,7 @@ export async function startTestServer(dbPath: string): Promise<TestServer> {
       cwd: process.cwd(),
       env: {
         ...process.env,
+        ICHIGO_DISABLE_SMTP: "true",
         ICHIGO_DB_PATH: dbPath,
         NODE_ENV: "production",
       },

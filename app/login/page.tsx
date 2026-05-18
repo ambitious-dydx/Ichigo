@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "../../src/components/google-auth-button";
+import { PasswordField } from "../../src/components/password-field";
 import { SubmitButton } from "../../src/components/submit-button";
 import { ThemeLogo } from "../../src/components/theme-logo";
 import { ThemeToggle } from "../../src/components/theme-toggle";
@@ -15,6 +16,12 @@ function getLoginErrorMessage(error?: string) {
       return "Enter your email or username, then your password.";
     case "invalid-credentials":
       return "That sign-in information does not match our records.";
+    case "email-not-verified":
+      return "Verify your email before signing in. Ichigo has sent you a fresh verification link.";
+    case "email-not-verified-send-failed":
+      return "Verify your email before signing in. Ichigo could not send the verification email yet.";
+    case "verification-email-failed":
+      return "Your account exists, but Ichigo could not send the verification email yet.";
     case "google-unavailable":
       return "Google sign-in is not configured yet.";
     case "google-cancelled":
@@ -36,6 +43,10 @@ function getLoginSuccessMessage(success?: string) {
   switch (success) {
     case "session-ended":
       return "That session was closed. Sign in again if you want to keep working.";
+    case "password-reset":
+      return "Your password was reset. Sign in with the new one.";
+    case "verification-email-sent":
+      return "Check your inbox for a verification link before signing in.";
     default:
       return null;
   }
@@ -49,7 +60,11 @@ export default async function LoginPage({
   const currentUser = await getCurrentUser();
 
   if (currentUser) {
-    redirect("/app");
+    if (!currentUser.emailVerifiedAt) {
+      redirect("/app/verify");
+    }
+
+    redirect(currentUser.onboardingCompletedAt ? "/app" : "/app/onboarding");
   }
 
   const { error, success } = await searchParams;
@@ -96,12 +111,20 @@ export default async function LoginPage({
               type="text"
               required
             />
-            <input className="text-input" name="password" placeholder="Password" type="password" required />
+            <PasswordField
+              className="text-input"
+              name="password"
+              placeholder="Password"
+              required
+            />
             <SubmitButton className="button button-primary" pendingLabel="Signing in...">
               Sign in
             </SubmitButton>
           </form>
 
+          <p className="auth-footer">
+            Forgot your password? <Link href="/forgot-password">Recover access</Link>
+          </p>
           <p className="auth-footer">
             New here? <Link href="/register">Create an account</Link>
           </p>

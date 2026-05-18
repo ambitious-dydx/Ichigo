@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "../../src/components/google-auth-button";
+import { PasswordField } from "../../src/components/password-field";
 import { SubmitButton } from "../../src/components/submit-button";
 import { ThemeLogo } from "../../src/components/theme-logo";
 import { ThemeToggle } from "../../src/components/theme-toggle";
@@ -18,6 +19,8 @@ function getRegisterErrorMessage(error?: string) {
       return "Enter a valid email address.";
     case "weak-password":
       return "Use a password with at least 8 characters.";
+    case "password-mismatch":
+      return "Re-enter the same password in both fields.";
     case "email-exists":
       return "That email is already in use.";
     case "username-exists":
@@ -35,7 +38,11 @@ export default async function RegisterPage({
   const currentUser = await getCurrentUser();
 
   if (currentUser) {
-    redirect("/app");
+    if (!currentUser.emailVerifiedAt) {
+      redirect("/app/verify");
+    }
+
+    redirect(currentUser.onboardingCompletedAt ? "/app" : "/app/onboarding");
   }
 
   const { error } = await searchParams;
@@ -74,12 +81,18 @@ export default async function RegisterPage({
           <form action={registerAction} className="inline-form-stack">
             <input className="text-input" name="username" placeholder="Username" type="text" required />
             <input className="text-input" name="email" placeholder="Email" type="email" required />
-            <input
+            <PasswordField
               className="text-input"
               minLength={8}
               name="password"
               placeholder="Password"
-              type="password"
+              required
+            />
+            <PasswordField
+              className="text-input"
+              minLength={8}
+              name="confirmPassword"
+              placeholder="Confirm password"
               required
             />
             <SubmitButton className="button button-primary" pendingLabel="Creating account...">

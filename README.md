@@ -82,6 +82,46 @@ http://localhost:3000/api/auth/google/callback
 https://your-production-domain.com/api/auth/google/callback
 ```
 
+## Transactional Email
+
+Ichigo now supports production-style verification and password reset email delivery over SMTP.
+
+Minimum Gmail setup:
+
+```bash
+APP_URL=http://localhost:3000
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-16-character-google-app-password
+```
+
+With only `SMTP_USER` and `SMTP_PASS`, Ichigo defaults to Gmail SMTP:
+
+- host: `smtp.gmail.com`
+- port: `465`
+- secure: `true`
+- from: `Ichigo <SMTP_USER>`
+
+For non-Gmail providers or a branded sender, also set:
+
+```bash
+SMTP_HOST=...
+SMTP_PORT=...
+SMTP_SECURE=true
+SMTP_FROM=Ichigo <noreply@your-domain.com>
+```
+
+Verification emails link to:
+
+```text
+/verify-email?token=...
+```
+
+Password reset emails link to:
+
+```text
+/reset-password?token=...
+```
+
 ## Demo Account
 
 Use the seeded local account:

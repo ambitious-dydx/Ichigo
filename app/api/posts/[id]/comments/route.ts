@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser, getCurrentUserOrThrowApi } from "../../../../../src/server/auth";
+import {
+  getCurrentOnboardedUserOrThrowApi,
+  getCurrentUser,
+  isOnboardingRequiredError,
+  isVerificationRequiredError,
+} from "../../../../../src/server/auth";
 import { jsonError } from "../../../../../src/server/http";
-import { createCommentRecord, getPostDetail } from "../../../../../src/server/repository";
+import {
+  createCommentRecord,
+  getPostDetail,
+  isReplyQualityCooldownError,
+} from "../../../../../src/server/repository";
 
 export async function GET(
   _request: Request,
@@ -23,7 +32,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await getCurrentUserOrThrowApi();
+    const user = await getCurrentOnboardedUserOrThrowApi();
     const { id } = await context.params;
     const body = (await request.json()) as { content?: string };
 
@@ -39,6 +48,24 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (isVerificationRequiredError(error)) {
+      return jsonError("Verify your email before replying", 403);
+    }
+
+    if (isOnboardingRequiredError(error)) {
+      return jsonError("Complete onboarding before replying", 403);
+    }
+
+    if (isReplyQualityCooldownError(error)) {
+      return Response.json(
+        {
+          error: "Replying is paused because too many recent replies missed the ask.",
+          cooldownEndsAt: error.cooldownEndsAt,
+        },
+        { status: 429 },
+      );
+    }
+
     return jsonError("Unauthorized", 401);
   }
 }

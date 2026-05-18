@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { registerUser } from "../../../../src/server/auth";
+import { registerUser, requestEmailVerification } from "../../../../src/server/auth";
 import { jsonError } from "../../../../src/server/http";
 
 export async function POST(request: Request) {
@@ -7,10 +7,21 @@ export async function POST(request: Request) {
     username?: string;
     email?: string;
     password?: string;
+    confirmPassword?: string;
   };
 
-  if (!body.username || !body.email || !body.password || body.password.length < 8) {
+  if (
+    !body.username ||
+    !body.email ||
+    !body.password ||
+    !body.confirmPassword ||
+    body.password.length < 8
+  ) {
     return jsonError("Invalid registration payload");
+  }
+
+  if (body.password !== body.confirmPassword) {
+    return jsonError("Password confirmation does not match", 422);
   }
 
   const result = await registerUser({
@@ -36,5 +47,20 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ user: result.user }, { status: 201 });
+  let previewUrl: string | null = null;
+
+  try {
+    const delivery = await requestEmailVerification(result.user.id);
+    previewUrl = delivery.previewUrl;
+  } catch {
+    previewUrl = null;
+  }
+
+  return NextResponse.json(
+    {
+      user: result.user,
+      previewUrl,
+    },
+    { status: 201 },
+  );
 }

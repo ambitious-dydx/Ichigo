@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCurrentUserOrThrowApi } from "../../../../../src/server/auth";
+import {
+  getCurrentOnboardedUserOrThrowApi,
+  isOnboardingRequiredError,
+  isVerificationRequiredError,
+} from "../../../../../src/server/auth";
 import { jsonError } from "../../../../../src/server/http";
 import { rateCommentRecord } from "../../../../../src/server/repository";
 import type { RatingType } from "../../../../../src/server/types";
@@ -13,7 +17,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const user = await getCurrentUserOrThrowApi();
+    const user = await getCurrentOnboardedUserOrThrowApi();
     const { id } = await context.params;
     const body = (await request.json()) as { ratingType?: string };
 
@@ -29,6 +33,14 @@ export async function POST(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (isVerificationRequiredError(error)) {
+      return jsonError("Verify your email before rating replies", 403);
+    }
+
+    if (isOnboardingRequiredError(error)) {
+      return jsonError("Complete onboarding before rating replies", 403);
+    }
+
     return jsonError("Unauthorized", 401);
   }
 }

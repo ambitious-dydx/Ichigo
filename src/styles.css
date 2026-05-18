@@ -1493,6 +1493,10 @@ p {
   align-items: start;
 }
 
+.rooms-page-shell {
+  grid-template-columns: 1fr;
+}
+
 .stats-grid,
 .settings-grid,
 .home-link-grid {
@@ -1885,6 +1889,41 @@ p {
   gap: 1rem;
 }
 
+.template-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.template-card {
+  width: 100%;
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  background: var(--surface-secondary);
+  color: var(--ink-strong);
+  text-align: left;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.template-card:hover,
+.template-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--berry-border-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.template-card strong {
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
 .form-row,
 .post-subtext,
 .tag-row,
@@ -1904,6 +1943,10 @@ p {
 
 .tag-row {
   margin-top: 0.9rem;
+}
+
+.compact-tag-row {
+  margin-top: 0.2rem;
 }
 
 .tag-pill {
@@ -1938,6 +1981,45 @@ p {
 select.text-input:focus {
   outline: 2px solid var(--focus-ring);
   border-color: var(--focus-border);
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field-input {
+  padding-right: 5.4rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--accent-text-strong);
+}
+
+.password-toggle-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
 
 .radio-option {
@@ -2024,6 +2106,34 @@ select.text-input:focus {
 .room-card {
   display: grid;
   gap: 0.8rem;
+  padding: 1.2rem;
+}
+
+.room-card-shell {
+  overflow: hidden;
+}
+
+.room-card-header {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.room-card-heading {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.room-card-heading .sidebar-label,
+.room-card-heading h3 {
+  overflow-wrap: normal;
+  word-break: break-word;
+}
+
+.room-card-status {
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .card-shell {
@@ -2066,6 +2176,36 @@ select.text-input:focus {
   overflow-wrap: anywhere;
 }
 
+.room-card .room-meta {
+  row-gap: 0.55rem;
+}
+
+.room-card .card-body {
+  gap: 0.85rem;
+}
+
+.room-card .tag-row {
+  margin-top: 0.15rem;
+}
+
+.room-card .card-footer {
+  margin: auto -1.2rem -1.2rem;
+  padding: 0.95rem 1.2rem 1.2rem;
+}
+
+.room-card-actions > .button,
+.room-card-actions form {
+  flex: 1 1 11rem;
+}
+
+.room-card-actions form .button {
+  width: 100%;
+}
+
+.room-create-panel {
+  min-width: 0;
+}
+
 .comment-card,
 .moderation-card {
   display: grid;
@@ -2085,6 +2225,73 @@ select.text-input:focus {
 .comment-card .report-form {
   margin-top: auto;
   padding-top: 0.85rem;
+  border-top: 1px solid var(--surface-border);
+}
+
+.assistant-intro {
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 15px;
+  background: var(--surface-secondary);
+}
+
+.assistant-intro strong {
+  color: var(--ink-strong);
+}
+
+.assistant-intro span,
+.assistant-note {
+  color: var(--ink-soft);
+}
+
+.assistant-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.assistant-status {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  background: var(--surface-secondary);
+}
+
+.assistant-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.assistant-status-match {
+  border-color: rgba(99, 164, 117, 0.34);
+  background: rgba(120, 173, 135, 0.08);
+}
+
+.assistant-status-acceptable {
+  border-color: rgba(88, 125, 164, 0.3);
+  background: rgba(88, 125, 164, 0.08);
+}
+
+.assistant-status-borderline {
+  border-color: rgba(213, 152, 71, 0.34);
+  background: rgba(213, 152, 71, 0.08);
+}
+
+.assistant-status-violation {
+  border-color: rgba(207, 92, 92, 0.34);
+  background: rgba(207, 92, 92, 0.08);
+}
+
+.assistant-rewrite {
+  display: grid;
+  gap: 0.35rem;
+  padding-top: 0.7rem;
   border-top: 1px solid var(--surface-border);
 }
 

@@ -2,16 +2,27 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { NextResponse } from "next/server";
 import { cache } from "react";
-import { createSessionToken, hashPassword, hashToken, verifyPassword } from "./security";
-import type { SessionUser } from "./types";
 import {
+  buildAppUrl,
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "./email";
+import { createSessionToken, hashPassword, hashToken, verifyPassword } from "./security";
+import type { FeedbackFocus, SessionUser } from "./types";
+import {
+  completeUserOnboarding,
+  consumeAccountToken,
+  createAccountToken,
+  createProductEvent,
   createSessionRecord,
   createUserRecord,
   getSessionWithUserByTokenHash,
   getUserAuthByIdentifier,
   getUserByEmail,
+  getUserById,
   getUserByUsername,
   getUserPasswordHashById,
+  markUserEmailVerified,
   revokeOtherSessions,
   revokeSessionById,
   touchSessionByTokenHash,
@@ -41,6 +52,22 @@ type AccountUpdateError = RegisterError;
 
 type PasswordChangeError = "incorrect-password" | "weak-password" | "same-password";
 
+type ResetPasswordError = "invalid-token" | "weak-password";
+
+class OnboardingRequiredError extends Error {
+  constructor() {
+    super("Onboarding required");
+    this.name = "OnboardingRequiredError";
+  }
+}
+
+class VerificationRequiredError extends Error {
+  constructor() {
+    super("Verification required");
+    this.name = "VerificationRequiredError";
+  }
+}
+
 function now() {
   return new Date();
 }
@@ -54,6 +81,10 @@ function sessionExpiryDate(fromDate = now()) {
   expiresAt.setDate(expiresAt.getDate() + SESSION_TTL_DAYS);
 
   return expiresAt;
+}
+
+function hoursFromNow(hours: number) {
+  return new Date(Date.now() + hours * 60 * 60 * 1000);
 }
 
 function normalizeEmail(value: string) {
@@ -188,6 +219,26 @@ export async function requireCurrentUser() {
   return user;
 }
 
+export async function requireVerifiedCurrentUser() {
+  const user = await requireCurrentUser();
+
+  if (!user.emailVerifiedAt) {
+    redirect("/app/verify");
+  }
+
+  return user;
+}
+
+export async function requireOnboardedUser() {
+  const user = await requireVerifiedCurrentUser();
+
+  if (!user.onboardingCompletedAt) {
+    redirect("/app/onboarding");
+  }
+
+  return user;
+}
+
 export async function signInUser(identifier: string, password: string) {
   const authRecord = getUserAuthByIdentifier(identifier);
 
@@ -196,6 +247,11 @@ export async function signInUser(identifier: string, password: string) {
   }
 
   await establishSession(authRecord.user.id);
+  createProductEvent({
+    userId: authRecord.user.id,
+    eventName: "auth.login",
+    route: "/login",
+  });
 
   return { user: authRecord.user };
 }
@@ -238,9 +294,39 @@ export async function registerUser(input: {
     return { error: "email-exists" as const };
   }
 
-  await establishSession(user.id);
+  createProductEvent({
+    userId: user.id,
+    eventName: "auth.register",
+    route: "/register",
+  });
 
   return { user };
+}
+
+export async function finishOnboarding(input: {
+  userId: string;
+  focus: FeedbackFocus;
+  goal: string;
+  preferredMode: Parameters<typeof completeUserOnboarding>[0]["preferredMode"];
+}) {
+  const user = completeUserOnboarding({
+    userId: input.userId,
+    onboardingFocus: input.focus,
+    onboardingGoal: input.goal,
+    preferredMode: input.preferredMode,
+  });
+
+  createProductEvent({
+    userId: input.userId,
+    eventName: "onboarding.completed",
+    route: "/app/onboarding",
+    metadata: {
+      focus: input.focus,
+      preferredMode: input.preferredMode,
+    },
+  });
+
+  return user;
 }
 
 export async function updateAccountDetails(
@@ -272,11 +358,14 @@ export async function updateAccountDetails(
     return { error: "username-exists" as const };
   }
 
+  const currentUser = getUserById(userId);
+  const emailChanged = currentUser ? normalizeEmail(currentUser.email) !== email : false;
   const user = updateUserAccountRecord({
     userId,
     username,
     email,
     bio: input.bio.trim(),
+    resetEmailVerification: emailChanged,
   });
 
   return { user };
@@ -309,6 +398,107 @@ export async function changePassword(
   if (currentState?.user.id === userId) {
     revokeOtherSessions(userId, currentState.sessionId);
   }
+
+  return { success: true as const };
+}
+
+export async function requestEmailVerification(userId: string) {
+  const user = getUserById(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const token = createAccountToken({
+    userId,
+    type: "email_verification",
+    expiresAt: hoursFromNow(24).toISOString(),
+  });
+  const verificationUrl = buildAppUrl(`/verify-email?token=${encodeURIComponent(token)}`);
+  const delivery = await sendVerificationEmail({
+    to: user.email,
+    username: user.username,
+    verificationUrl,
+  });
+
+  createProductEvent({
+    userId,
+    eventName: "auth.email_verification_requested",
+    metadata: {
+      delivery: delivery.delivery,
+    },
+  });
+
+  return delivery;
+}
+
+export async function verifyEmailToken(token: string) {
+  const consumed = consumeAccountToken(token, "email_verification");
+
+  if (!consumed) {
+    return { error: "invalid-token" as const };
+  }
+
+  const user = markUserEmailVerified(consumed.userId, nowIso());
+  createProductEvent({
+    userId: consumed.userId,
+    eventName: "auth.email_verified",
+  });
+
+  return { user };
+}
+
+export async function requestPasswordReset(identifier: string) {
+  const authRecord = getUserAuthByIdentifier(identifier);
+
+  if (!authRecord) {
+    return null;
+  }
+
+  const token = createAccountToken({
+    userId: authRecord.user.id,
+    type: "password_reset",
+    expiresAt: hoursFromNow(2).toISOString(),
+  });
+  const resetUrl = buildAppUrl(`/reset-password?token=${encodeURIComponent(token)}`);
+  const delivery = await sendPasswordResetEmail({
+    to: authRecord.user.email,
+    username: authRecord.user.username,
+    resetUrl,
+  });
+
+  createProductEvent({
+    userId: authRecord.user.id,
+    eventName: "auth.password_reset_requested",
+    route: "/forgot-password",
+    metadata: {
+      delivery: delivery.delivery,
+    },
+  });
+
+  return delivery;
+}
+
+export async function resetPasswordWithToken(input: {
+  token: string;
+  nextPassword: string;
+}) {
+  if (!isStrongEnoughPassword(input.nextPassword)) {
+    return { error: "weak-password" as const satisfies ResetPasswordError };
+  }
+
+  const consumed = consumeAccountToken(input.token, "password_reset");
+
+  if (!consumed) {
+    return { error: "invalid-token" as const satisfies ResetPasswordError };
+  }
+
+  updateUserPasswordHash(consumed.userId, hashPassword(input.nextPassword));
+  createProductEvent({
+    userId: consumed.userId,
+    eventName: "auth.password_reset_completed",
+    route: "/reset-password",
+  });
 
   return { success: true as const };
 }
@@ -369,4 +559,26 @@ export async function getCurrentUserOrThrowApi() {
   }
 
   return user;
+}
+
+export async function getCurrentOnboardedUserOrThrowApi() {
+  const user = await getCurrentUserOrThrowApi();
+
+  if (!user.emailVerifiedAt) {
+    throw new VerificationRequiredError();
+  }
+
+  if (!user.onboardingCompletedAt) {
+    throw new OnboardingRequiredError();
+  }
+
+  return user;
+}
+
+export function isVerificationRequiredError(error: unknown) {
+  return error instanceof VerificationRequiredError;
+}
+
+export function isOnboardingRequiredError(error: unknown) {
+  return error instanceof OnboardingRequiredError;
 }

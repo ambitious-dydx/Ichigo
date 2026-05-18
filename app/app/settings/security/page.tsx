@@ -1,5 +1,5 @@
 import { SecurityPage } from "../../../../src/components/product-app";
-import { getCurrentSessionId, requireCurrentUser } from "../../../../src/server/auth";
+import { getCurrentSessionId, requireOnboardedUser } from "../../../../src/server/auth";
 import { getSecurityView } from "../../../../src/server/repository";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function SecuritySettingsRoute({
 }: {
   searchParams: Promise<{ success?: string; error?: string }>;
 }) {
-  const currentUser = await requireCurrentUser();
+  const currentUser = await requireOnboardedUser();
   const { success, error } = await searchParams;
   const security = getSecurityView({
     userId: currentUser.id,

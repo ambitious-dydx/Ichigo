@@ -26,6 +26,22 @@ type NavItem = {
   matches: string[];
 };
 
+const onboardingItem: NavItem = {
+  href: "/app/onboarding",
+  label: "Onboarding",
+  description: "Set your starting point",
+  icon: "home",
+  matches: ["/app/onboarding"],
+};
+
+const verificationItem: NavItem = {
+  href: "/app/verify",
+  label: "Verify email",
+  description: "Unlock your account",
+  icon: "settings",
+  matches: ["/app/verify"],
+};
+
 const primaryItems: NavItem[] = [
   {
     href: "/app",
@@ -65,6 +81,10 @@ const primaryItems: NavItem[] = [
 ];
 
 function getAccountItems(currentUser: SessionUser): NavItem[] {
+  const settingsHref =
+    currentUser.emailVerifiedAt && currentUser.onboardingCompletedAt
+      ? "/app/settings"
+      : "/app/settings/account";
   const items: NavItem[] = [
     {
       href: "/app/profile",
@@ -74,7 +94,7 @@ function getAccountItems(currentUser: SessionUser): NavItem[] {
       matches: ["/app/profile"],
     },
     {
-      href: "/app/settings",
+      href: settingsHref,
       label: "Settings",
       description: "Account and sessions",
       icon: "settings",
@@ -204,10 +224,26 @@ function NavIcon({ name }: { name: IconName | "menu" | "close" }) {
 export function AppNavigation({ currentUser }: { currentUser: SessionUser }) {
   const pathname = usePathname();
   const compact = useCompactMode("(max-width: 980px)");
+  const hasVerifiedEmail = Boolean(currentUser.emailVerifiedAt);
+  const hasCompletedOnboarding = Boolean(currentUser.onboardingCompletedAt);
   const accountItems = useMemo(() => getAccountItems(currentUser), [currentUser]);
-  const allItems = useMemo(() => [...primaryItems, ...accountItems], [accountItems]);
+  const visiblePrimaryItems = useMemo(
+    () => (hasVerifiedEmail && hasCompletedOnboarding ? primaryItems : []),
+    [hasVerifiedEmail, hasCompletedOnboarding],
+  );
+  const allItems = useMemo(
+    () => [...visiblePrimaryItems, ...accountItems],
+    [visiblePrimaryItems, accountItems],
+  );
   const currentItem =
-    allItems.find((item) => matchesItem(pathname, item)) ?? primaryItems[0];
+    allItems.find((item) => matchesItem(pathname, item)) ??
+    (!hasVerifiedEmail
+      ? verificationItem
+      : matchesItem(pathname, onboardingItem)
+        ? onboardingItem
+        : hasCompletedOnboarding
+        ? primaryItems[0]
+        : onboardingItem);
 
   const [accountOpen, setAccountOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -285,17 +321,19 @@ export function AppNavigation({ currentUser }: { currentUser: SessionUser }) {
               <strong>{currentItem.label}</strong>
             </div>
           ) : (
-            <div className="app-nav-tabs">
-              {primaryItems.map((item) => (
-                <Link
-                  key={item.href}
-                  className={`app-nav-tab${matchesItem(pathname, item) ? " active" : ""}`}
-                  href={item.href}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
+            visiblePrimaryItems.length ? (
+              <div className="app-nav-tabs">
+                {visiblePrimaryItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    className={`app-nav-tab${matchesItem(pathname, item) ? " active" : ""}`}
+                    href={item.href}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null
           )}
         </div>
 
@@ -396,25 +434,27 @@ export function AppNavigation({ currentUser }: { currentUser: SessionUser }) {
               </span>
             </div>
 
-            <section className="nav-sheet-group">
-              <p className="nav-sheet-label">Navigate</p>
-              <div className="nav-sheet-links">
-                {primaryItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    className={`nav-sheet-link${matchesItem(pathname, item) ? " active" : ""}`}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <NavIcon name={item.icon} />
-                    <div className="nav-sheet-link-copy">
-                      <strong>{item.label}</strong>
-                      <span>{item.description}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+            {visiblePrimaryItems.length ? (
+              <section className="nav-sheet-group">
+                <p className="nav-sheet-label">Navigate</p>
+                <div className="nav-sheet-links">
+                  {visiblePrimaryItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      className={`nav-sheet-link${matchesItem(pathname, item) ? " active" : ""}`}
+                      href={item.href}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <NavIcon name={item.icon} />
+                      <div className="nav-sheet-link-copy">
+                        <strong>{item.label}</strong>
+                        <span>{item.description}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <section className="nav-sheet-group">
               <p className="nav-sheet-label">Account</p>

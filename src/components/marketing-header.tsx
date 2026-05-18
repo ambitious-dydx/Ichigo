@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { SessionUser } from "../server/types";
 import { ThemeLogo } from "./theme-logo";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -41,15 +42,33 @@ function MenuIcon({ close = false }: { close?: boolean }) {
   );
 }
 
-export function MarketingHeader({ viewer }: { viewer: boolean }) {
+export function MarketingHeader({ viewer }: { viewer: SessionUser | null }) {
   const compact = useCompactMode("(max-width: 1180px)");
   const [menuOpen, setMenuOpen] = useState(false);
+  const isSignedIn = Boolean(viewer);
+  const hasVerifiedEmail = Boolean(viewer?.emailVerifiedAt);
+  const hasCompletedOnboarding = Boolean(viewer?.onboardingCompletedAt);
 
   const navItems = [
     { href: "#how-it-works", label: "How it works" },
     { href: "#principle", label: "Why it matters" },
     { href: "#modes", label: "Modes" },
-    { href: viewer ? "/app/feed" : "#demo", label: viewer ? "Open app" : "Try it" },
+    {
+      href: isSignedIn
+        ? hasVerifiedEmail
+          ? hasCompletedOnboarding
+            ? "/app/feed"
+            : "/app/onboarding"
+          : "/app/verify"
+        : "#demo",
+      label: isSignedIn
+        ? hasVerifiedEmail
+          ? hasCompletedOnboarding
+            ? "Open app"
+            : "Finish setup"
+          : "Verify email"
+        : "Try it",
+    },
   ];
 
   useEffect(() => {
@@ -119,14 +138,33 @@ export function MarketingHeader({ viewer }: { viewer: boolean }) {
           ) : (
             <div className="cta-row">
               <ThemeToggle />
-              {viewer ? (
+              {isSignedIn ? (
                 <>
-                  <Link className="button button-secondary" href="/app/feed">
-                    Open the app
-                  </Link>
-                  <Link className="button button-primary" href="/app/compose">
-                    Write a post
-                  </Link>
+                  {hasVerifiedEmail ? (
+                    hasCompletedOnboarding ? (
+                      <>
+                        <Link className="button button-secondary" href="/app/feed">
+                          Open the app
+                        </Link>
+                        <Link className="button button-primary" href="/app/compose">
+                          Write a post
+                        </Link>
+                      </>
+                    ) : (
+                      <Link className="button button-primary" href="/app/onboarding">
+                        Continue setup
+                      </Link>
+                    )
+                  ) : (
+                    <>
+                      <Link className="button button-secondary" href="/app/verify">
+                        Verify email
+                      </Link>
+                      <Link className="button button-primary" href="/app/settings/account">
+                        Account settings
+                      </Link>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
@@ -188,8 +226,12 @@ export function MarketingHeader({ viewer }: { viewer: boolean }) {
                             ? "Read the thesis"
                             : item.label === "Modes"
                               ? "Browse response styles"
-                              : viewer
-                                ? "Go inside Ichigo"
+                              : isSignedIn
+                                ? hasVerifiedEmail
+                                  ? hasCompletedOnboarding
+                                    ? "Go inside Ichigo"
+                                    : "Finish onboarding"
+                                  : "Confirm your address"
                                 : "Try the product"}
                       </span>
                     </div>
@@ -199,16 +241,35 @@ export function MarketingHeader({ viewer }: { viewer: boolean }) {
             </section>
 
             <section className="nav-sheet-group">
-              <p className="nav-sheet-label">{viewer ? "Inside Ichigo" : "Get started"}</p>
+              <p className="nav-sheet-label">{isSignedIn ? "Inside Ichigo" : "Get started"}</p>
               <div className="nav-sheet-actions">
-                {viewer ? (
+                {isSignedIn ? (
                   <>
-                    <Link className="button button-secondary" href="/app/feed" onClick={closeMenu}>
-                      Open the app
-                    </Link>
-                    <Link className="button button-primary" href="/app/compose" onClick={closeMenu}>
-                      Write a post
-                    </Link>
+                    {hasVerifiedEmail ? (
+                      hasCompletedOnboarding ? (
+                        <>
+                          <Link className="button button-secondary" href="/app/feed" onClick={closeMenu}>
+                            Open the app
+                          </Link>
+                          <Link className="button button-primary" href="/app/compose" onClick={closeMenu}>
+                            Write a post
+                          </Link>
+                        </>
+                      ) : (
+                        <Link className="button button-primary" href="/app/onboarding" onClick={closeMenu}>
+                          Continue setup
+                        </Link>
+                      )
+                    ) : (
+                      <>
+                        <Link className="button button-secondary" href="/app/verify" onClick={closeMenu}>
+                          Verify email
+                        </Link>
+                        <Link className="button button-primary" href="/app/settings/account" onClick={closeMenu}>
+                          Account settings
+                        </Link>
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
