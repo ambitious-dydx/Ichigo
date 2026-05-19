@@ -179,6 +179,49 @@ describe("http smoke", () => {
     ).toBe(true);
   });
 
+  it("supports reply-fit analysis endpoints", async () => {
+    const classifyResponse = await fetch(`${baseUrl}/api/ai/classify-comment`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        postId: "post_seed_1",
+        commentContent: "You probably know the smaller bet already. Pick the path that gets you signal fastest.",
+      }),
+    });
+    const classifyPayload = (await classifyResponse.json()) as {
+      alignmentScore: number;
+      classification: string;
+      reason: string;
+      suggestedRewrite: string | null;
+    };
+
+    expect(classifyResponse.status).toBe(200);
+    expect(typeof classifyPayload.alignmentScore).toBe("number");
+    expect(typeof classifyPayload.reason).toBe("string");
+
+    const rewriteResponse = await fetch(`${baseUrl}/api/ai/rewrite-comment`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        postId: "post_seed_4",
+        commentContent: "Whatever, just do anything.",
+      }),
+    });
+    const rewritePayload = (await rewriteResponse.json()) as {
+      classification: string;
+      reason: string;
+      suggestedRewrite: string | null;
+    };
+
+    expect(rewriteResponse.status).toBe(200);
+    expect(typeof rewritePayload.classification).toBe("string");
+    expect(typeof rewritePayload.reason).toBe("string");
+  });
+
   it("enforces reply-quality cooldowns through the HTTP API", async () => {
     const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
