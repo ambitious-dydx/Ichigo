@@ -142,6 +142,38 @@ describe("repository integration", () => {
     expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_ada")).toBe(
       true,
     );
+
+    expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_mia")).toBe(
+      true,
+    );
+
+    setUserRelationship({
+      subjectUserId: DEMO_ACCOUNT.id,
+      objectUserId: "user_mia",
+      relationshipType: "mute",
+    });
+
+    expect(listBlockedUsers(DEMO_ACCOUNT.id)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "user_mia",
+          type: "mute",
+        }),
+      ]),
+    );
+    expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_mia")).toBe(
+      false,
+    );
+
+    clearUserRelationship({
+      subjectUserId: DEMO_ACCOUNT.id,
+      objectUserId: "user_mia",
+      relationshipType: "mute",
+    });
+
+    expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_mia")).toBe(
+      true,
+    );
   });
 
   it("handles post, comment, rating, and notification flows", () => {

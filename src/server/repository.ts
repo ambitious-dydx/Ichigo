@@ -1280,7 +1280,7 @@ export function revokeOtherSessions(userId: string, currentSessionId: string) {
 
 export function listFeedPosts(currentUserId?: string | null) {
   const db = getDb();
-  const blockedUserIds = currentUserId ? getRelationshipIds(currentUserId, "block") : new Set<string>();
+  const silencedUserIds = currentUserId ? getRelationshipIds(currentUserId) : new Set<string>();
   const membershipClause = currentUserId
     ? `OR (
         posts.visibility = 'group'
@@ -1327,7 +1327,7 @@ export function listFeedPosts(currentUserId?: string | null) {
 
   return rows
     .map(mapFeedPost)
-    .filter((post) => !blockedUserIds.has(post.author.id));
+    .filter((post) => !silencedUserIds.has(post.author.id));
 }
 
 export function listPostsByUser(userId: string) {
@@ -1416,7 +1416,7 @@ export function getPostDetail(postId: string, currentUserId?: string | null) {
     return null;
   }
 
-  const blockedUserIds = currentUserId ? getRelationshipIds(currentUserId, "block") : new Set<string>();
+  const silencedUserIds = currentUserId ? getRelationshipIds(currentUserId) : new Set<string>();
   const commentRows = db
     .prepare(`
       SELECT
@@ -1441,7 +1441,7 @@ export function getPostDetail(postId: string, currentUserId?: string | null) {
   const post = mapFeedPost(row);
   const comments = commentRows
     .map(mapComment)
-    .filter((comment) => !blockedUserIds.has(comment.author.id));
+    .filter((comment) => !silencedUserIds.has(comment.author.id));
   const alignmentSummary = comments.reduce(
     (summary, comment) => {
       summary.total += 1;
