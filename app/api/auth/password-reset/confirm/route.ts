@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PASSWORD_POLICY_FULL_HINT } from "../../../../../src/password-policy";
 import { resetPasswordWithToken } from "../../../../../src/server/auth";
 import { jsonError } from "../../../../../src/server/http";
 
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
   if ("error" in result) {
     return jsonError(
-      result.error === "weak-password" ? "New password is too weak" : "Invalid reset token",
+      result.error === "weak-password" ? PASSWORD_POLICY_FULL_HINT : "Invalid reset token",
       422,
     );
   }

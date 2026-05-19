@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+  PASSWORD_POLICY_FULL_HINT,
+  PASSWORD_POLICY_SHORT_HINT,
+} from "../../src/password-policy";
 import { DismissibleStatusBanner } from "../../src/components/dismissible-status-banner";
 import { GoogleAuthButton } from "../../src/components/google-auth-button";
 import { PasswordField } from "../../src/components/password-field";
@@ -13,13 +19,13 @@ import { registerAction } from "../../src/server/actions";
 function getRegisterErrorMessage(error?: string) {
   switch (error) {
     case "invalid-input":
-      return "Use a name, an email, and a password with at least 8 characters.";
+      return "Use a username, an email, and a stronger password.";
     case "invalid-username":
       return "Use 3 to 24 letters, numbers, or underscores for your username.";
     case "invalid-email":
       return "Enter a valid email address.";
     case "weak-password":
-      return "Use a password with at least 8 characters.";
+      return PASSWORD_POLICY_SHORT_HINT;
     case "password-mismatch":
       return "Re-enter the same password in both fields.";
     case "email-exists":
@@ -86,18 +92,23 @@ export default async function RegisterPage({
             <input className="text-input" name="email" placeholder="Email" type="email" required />
             <PasswordField
               className="text-input"
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               name="password"
+              pattern={PASSWORD_PATTERN}
               placeholder="Password"
               required
+              title={PASSWORD_POLICY_FULL_HINT}
             />
             <PasswordField
               className="text-input"
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               name="confirmPassword"
+              pattern={PASSWORD_PATTERN}
               placeholder="Confirm password"
               required
+              title={PASSWORD_POLICY_FULL_HINT}
             />
+            <p className="support-copy">{PASSWORD_POLICY_FULL_HINT}</p>
             <SubmitButton className="button button-primary" pendingLabel="Creating account...">
               Create account
             </SubmitButton>

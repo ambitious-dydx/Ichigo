@@ -24,7 +24,10 @@ function getNotice(success?: string, error?: string) {
     case "incorrect-password":
       return { tone: "error" as const, text: "Your current password is incorrect." };
     case "weak-password":
-      return { tone: "error" as const, text: "Use a password with at least 8 characters." };
+      return {
+        tone: "error" as const,
+        text: "Use 12+ characters with uppercase, lowercase, a number, and a symbol.",
+      };
     case "same-password":
       return { tone: "error" as const, text: "Choose a password you are not already using." };
     case "invalid-session":

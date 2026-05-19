@@ -7,6 +7,7 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "./email";
+import { isStrongPassword } from "../password-policy";
 import { createSessionToken, hashPassword, hashToken, verifyPassword } from "./security";
 import type { FeedbackFocus, SessionUser } from "./types";
 import {
@@ -101,10 +102,6 @@ function isValidEmail(value: string) {
 
 function isValidUsername(value: string) {
   return /^[a-zA-Z0-9_]{3,24}$/.test(value);
-}
-
-function isStrongEnoughPassword(value: string) {
-  return value.length >= 8;
 }
 
 async function getRequestUserAgent() {
@@ -272,7 +269,7 @@ export async function registerUser(input: {
     return { error: "invalid-email" as const };
   }
 
-  if (!isStrongEnoughPassword(input.password)) {
+  if (!isStrongPassword(input.password)) {
     return { error: "weak-password" as const };
   }
 
@@ -384,7 +381,7 @@ export async function changePassword(
     return { error: "incorrect-password" as const };
   }
 
-  if (!isStrongEnoughPassword(input.nextPassword)) {
+  if (!isStrongPassword(input.nextPassword)) {
     return { error: "weak-password" as const };
   }
 
@@ -483,7 +480,7 @@ export async function resetPasswordWithToken(input: {
   token: string;
   nextPassword: string;
 }) {
-  if (!isStrongEnoughPassword(input.nextPassword)) {
+  if (!isStrongPassword(input.nextPassword)) {
     return { error: "weak-password" as const satisfies ResetPasswordError };
   }
 

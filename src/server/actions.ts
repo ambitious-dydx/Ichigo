@@ -129,7 +129,7 @@ export async function registerAction(formData: FormData) {
   const password = asString(formData.get("password"));
   const confirmPassword = asString(formData.get("confirmPassword"));
 
-  if (!username || !email || password.length < 8 || !confirmPassword) {
+  if (!username || !email || !password || !confirmPassword) {
     redirect("/register?error=invalid-input");
   }
 

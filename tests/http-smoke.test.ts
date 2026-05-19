@@ -14,7 +14,7 @@ function createIdentity(prefix: string) {
   return {
     username: `${prefix}_${suffix}`.slice(0, 24),
     email: `${prefix}.${suffix}@example.com`,
-    password: "test-pass-123",
+    password: "Test-pass-123!",
   };
 }
 
@@ -282,7 +282,7 @@ describe("http smoke", () => {
     expect(verificationRequestResponse.status).toBe(202);
     await verifyEmailFromPreview(baseUrl, verificationRequestPayload.previewUrl);
 
-    const nextPassword = "new-test-pass-456";
+    const nextPassword = "New-test-pass-456!";
     const changePasswordResponse = await fetch(`${baseUrl}/api/auth/password`, {
       method: "POST",
       headers: {
@@ -480,7 +480,7 @@ describe("http smoke", () => {
       : null;
     expect(resetToken).toBeTruthy();
 
-    const nextPassword = "reset-pass-789";
+    const nextPassword = "Reset-pass-789!";
     const resetConfirmResponse = await fetch(`${baseUrl}/api/auth/password-reset/confirm`, {
       method: "POST",
       headers: {

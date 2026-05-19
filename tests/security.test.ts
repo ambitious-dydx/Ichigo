@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isStrongPassword } from "../src/password-policy";
 import {
   createAvatarFallback,
   createSessionToken,
@@ -18,6 +19,15 @@ describe("security primitives", () => {
 
   it("rejects malformed stored hashes", () => {
     expect(verifyPassword("anything", "not-a-valid-hash")).toBe(false);
+  });
+
+  it("enforces the shared password policy", () => {
+    expect(isStrongPassword("short")).toBe(false);
+    expect(isStrongPassword("alllowercase123!")).toBe(false);
+    expect(isStrongPassword("ALLUPPERCASE123!")).toBe(false);
+    expect(isStrongPassword("MissingNumber!")).toBe(false);
+    expect(isStrongPassword("MissingSymbol123")).toBe(false);
+    expect(isStrongPassword("ValidPassword123!")).toBe(true);
   });
 
   it("creates unique session tokens and deterministic token hashes", () => {

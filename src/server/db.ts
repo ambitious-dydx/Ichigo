@@ -2,9 +2,10 @@ import { existsSync, mkdirSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { DEMO_ACCOUNT, seedDatabase } from "./seed";
-import { createAvatarFallback } from "./security";
+import { createAvatarFallback, hashPassword, verifyPassword } from "./security";
 
 const DATA_DIRECTORY = join(process.cwd(), "data");
+const LEGACY_DEMO_PASSWORD = "ichigo-demo";
 
 let database: DatabaseSync | null = null;
 
@@ -260,11 +261,21 @@ function runMigrations(db: DatabaseSync) {
     WHERE updated_at IS NULL;
   `);
 
+  const demoUser = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(DEMO_ACCOUNT.id) as
+    | { password_hash: string }
+    | undefined;
+  const shouldUpgradeLegacyDemoPassword =
+    demoUser?.password_hash ? verifyPassword(LEGACY_DEMO_PASSWORD, demoUser.password_hash) : false;
+
   db.prepare(`
     UPDATE users
     SET
       username = ?,
       email = ?,
+      password_hash = CASE
+        WHEN ? = 1 THEN ?
+        ELSE password_hash
+      END,
       avatar_url = ?,
       onboarding_focus = COALESCE(onboarding_focus, 'founder'),
       onboarding_goal = CASE
@@ -279,6 +290,8 @@ function runMigrations(db: DatabaseSync) {
   `).run(
     DEMO_ACCOUNT.username,
     DEMO_ACCOUNT.email,
+    shouldUpgradeLegacyDemoPassword ? 1 : 0,
+    hashPassword(DEMO_ACCOUNT.password),
     createAvatarFallback(DEMO_ACCOUNT.username),
     DEMO_ACCOUNT.id,
   );

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PASSWORD_POLICY_FULL_HINT } from "../../../../src/password-policy";
 import { changePassword, getCurrentUser } from "../../../../src/server/auth";
 import { jsonError } from "../../../../src/server/http";
 
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     return jsonError(
-      result.error === "same-password" ? "New password must be different" : "New password is too weak",
+      result.error === "same-password" ? "New password must be different" : PASSWORD_POLICY_FULL_HINT,
       422,
     );
   }

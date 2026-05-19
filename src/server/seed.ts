@@ -6,7 +6,7 @@ export const DEMO_ACCOUNT = {
   id: "user_daniel",
   username: "Nia",
   email: "nia@ichigo.local",
-  password: "ichigo-demo",
+  password: "Ichigo-demo1!",
 } as const;
 
 function nowMinus(minutes: number) {

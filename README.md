@@ -68,6 +68,15 @@ Ichigo now supports two real authentication paths:
 - email + password registration and sign-in
 - Google account sign-in
 
+Password policy for new and changed passwords:
+
+- `12` to `72` characters
+- at least one uppercase letter
+- at least one lowercase letter
+- at least one number
+- at least one symbol
+- no spaces
+
 To enable Google auth locally or in production, create `.env.local` from `.env.example` and provide:
 
 ```bash
@@ -128,7 +137,7 @@ Use the seeded local account:
 
 ```text
 email: nia@ichigo.local
-password: ichigo-demo
+password: Ichigo-demo1!
 ```
 
 ## Backend Surface

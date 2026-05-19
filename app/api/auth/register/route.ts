@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PASSWORD_POLICY_FULL_HINT } from "../../../../src/password-policy";
 import { registerUser, requestEmailVerification } from "../../../../src/server/auth";
 import { jsonError } from "../../../../src/server/http";
 
@@ -14,8 +15,7 @@ export async function POST(request: Request) {
     !body.username ||
     !body.email ||
     !body.password ||
-    !body.confirmPassword ||
-    body.password.length < 8
+    !body.confirmPassword
   ) {
     return jsonError("Invalid registration payload");
   }
@@ -43,7 +43,10 @@ export async function POST(request: Request) {
       result.error === "invalid-username" ||
       result.error === "weak-password"
     ) {
-      return jsonError("Invalid registration payload", 422);
+      return jsonError(
+        result.error === "weak-password" ? PASSWORD_POLICY_FULL_HINT : "Invalid registration payload",
+        422,
+      );
     }
   }
 

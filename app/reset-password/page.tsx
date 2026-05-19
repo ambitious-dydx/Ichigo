@@ -1,4 +1,10 @@
 import Link from "next/link";
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+  PASSWORD_POLICY_FULL_HINT,
+  PASSWORD_POLICY_SHORT_HINT,
+} from "../../src/password-policy";
 import { PasswordField } from "../../src/components/password-field";
 import { SubmitButton } from "../../src/components/submit-button";
 import { ThemeLogo } from "../../src/components/theme-logo";
@@ -12,7 +18,7 @@ function getErrorMessage(error?: string) {
     case "password-mismatch":
       return "The password confirmation does not match.";
     case "weak-password":
-      return "Use a password with at least 8 characters.";
+      return PASSWORD_POLICY_SHORT_HINT;
     case "invalid-token":
       return "That reset link is missing, expired, or has already been used.";
     default:
@@ -52,18 +58,23 @@ export default async function ResetPasswordPage({
             <input name="token" type="hidden" value={token ?? ""} />
             <PasswordField
               className="text-input"
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               name="nextPassword"
+              pattern={PASSWORD_PATTERN}
               placeholder="New password"
               required
+              title={PASSWORD_POLICY_FULL_HINT}
             />
             <PasswordField
               className="text-input"
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               name="confirmPassword"
+              pattern={PASSWORD_PATTERN}
               placeholder="Confirm new password"
               required
+              title={PASSWORD_POLICY_FULL_HINT}
             />
+            <p className="support-copy">{PASSWORD_POLICY_FULL_HINT}</p>
             <SubmitButton className="button button-primary" pendingLabel="Resetting...">
               Reset password
             </SubmitButton>
