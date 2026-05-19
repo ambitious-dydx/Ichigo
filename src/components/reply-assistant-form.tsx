@@ -46,8 +46,13 @@ export function ReplyAssistantForm({
   const [analysisText, setAnalysisText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [guardMessage, setGuardMessage] = useState("");
+  const [mounted, setMounted] = useState(false);
   const deferredDraft = useDeferredValue(draft);
   const isCoolingDown = Boolean(cooldownEndsAt);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function runAnalysis(input: string) {
     const trimmed = input.trim();
@@ -199,7 +204,9 @@ export function ReplyAssistantForm({
       ) : (
         <div className="assistant-note">
           {isCoolingDown
-            ? `Replying is paused until ${new Date(cooldownEndsAt ?? "").toLocaleString()}.`
+            ? mounted && cooldownEndsAt
+              ? `Replying is paused until ${new Date(cooldownEndsAt).toLocaleString()}.`
+              : "Replying is paused for now."
             : "Ichigo will check whether your reply matches the ask as you write."}
         </div>
       )}
