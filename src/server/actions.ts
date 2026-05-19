@@ -82,6 +82,21 @@ function isFeedbackFocus(value: string): value is FeedbackFocus {
   return ["founder", "creator", "reflection", "support"].includes(value);
 }
 
+function withNotice(path: string, values: Record<string, string>) {
+  const [pathname, queryString] = path.split("?", 2);
+  const params = new URLSearchParams(queryString ?? "");
+
+  params.delete("success");
+  params.delete("error");
+
+  for (const [key, value] of Object.entries(values)) {
+    params.set(key, value);
+  }
+
+  const nextQuery = params.toString();
+  return nextQuery ? `${pathname}?${nextQuery}` : pathname;
+}
+
 function guardRateLimit(userId: string, action: string, limit: number, windowMs: number) {
   return hitRateLimit({
     scopeKey: userId,
@@ -381,7 +396,7 @@ export async function createRoomAction(formData: FormData) {
 
   revalidatePath("/app");
   revalidatePath("/app/rooms");
-  redirect("/app/rooms");
+  redirect("/app/rooms?success=room-created");
 }
 
 function modesDefault() {
@@ -391,6 +406,7 @@ function modesDefault() {
 export async function joinRoomAction(formData: FormData) {
   const currentUser = await requireOnboardedUser();
   const roomId = asString(formData.get("roomId"));
+  const returnTo = asString(formData.get("returnTo"));
 
   if (!roomId) {
     return;
@@ -400,11 +416,18 @@ export async function joinRoomAction(formData: FormData) {
   revalidatePath("/app");
   revalidatePath("/app/rooms");
   revalidatePath(`/app/rooms/${roomId}`);
+
+  if (returnTo) {
+    redirect(withNotice(returnTo, { success: "room-joined" }));
+  }
+
+  redirect("/app/rooms?success=room-joined");
 }
 
 export async function leaveRoomAction(formData: FormData) {
   const currentUser = await requireOnboardedUser();
   const roomId = asString(formData.get("roomId"));
+  const returnTo = asString(formData.get("returnTo"));
 
   if (!roomId) {
     return;
@@ -414,6 +437,12 @@ export async function leaveRoomAction(formData: FormData) {
   revalidatePath("/app");
   revalidatePath("/app/rooms");
   revalidatePath(`/app/rooms/${roomId}`);
+
+  if (returnTo) {
+    redirect(withNotice(returnTo, { success: "room-left" }));
+  }
+
+  redirect("/app/rooms?success=room-left");
 }
 
 export async function updateProfileAction(formData: FormData) {
@@ -428,6 +457,7 @@ export async function updateProfileAction(formData: FormData) {
   revalidatePath("/app");
   revalidatePath("/app/profile");
   revalidatePath("/app/settings/account");
+  redirect("/app/profile?success=profile-saved");
 }
 
 export async function updateReportStatusAction(formData: FormData) {
@@ -476,6 +506,7 @@ export async function markNotificationsReadAction() {
   markNotificationsRead(currentUser.id);
   revalidatePath("/app");
   revalidatePath("/app/notifications");
+  redirect("/app/notifications?success=notifications-read");
 }
 
 export async function updateAccountAction(formData: FormData) {
@@ -695,8 +726,14 @@ export async function setRelationshipAction(formData: FormData) {
   revalidatePath("/app/settings/account");
 
   if (returnTo) {
-    redirect(returnTo);
+    redirect(
+      withNotice(returnTo, {
+        success: relationshipType === "block" ? "user-blocked" : "user-muted",
+      }),
+    );
   }
+
+  redirect(`/app?success=${relationshipType === "block" ? "user-blocked" : "user-muted"}`);
 }
 
 export async function clearRelationshipAction(formData: FormData) {
@@ -720,6 +757,12 @@ export async function clearRelationshipAction(formData: FormData) {
   revalidatePath("/app/settings/account");
 
   if (returnTo) {
-    redirect(returnTo);
+    redirect(
+      withNotice(returnTo, {
+        success: relationshipType === "block" ? "user-unblocked" : "user-unmuted",
+      }),
+    );
   }
+
+  redirect(`/app?success=${relationshipType === "block" ? "user-unblocked" : "user-unmuted"}`);
 }

@@ -412,7 +412,7 @@ export function ProductShell({
   );
 }
 
-export function HomePage({ home }: { home: AppHomeView }) {
+export function HomePage({ home, notice }: { home: AppHomeView; notice: PageNotice }) {
   return (
     <div className="workspace-grid">
       <section className="content-column">
@@ -426,6 +426,8 @@ export function HomePage({ home }: { home: AppHomeView }) {
           description={home.wedge.summary}
           title="Home"
         />
+
+        <StatusBanner notice={notice} />
 
         <section className="stats-grid">
           <article className="panel stat-card card-shell">
@@ -1311,11 +1313,13 @@ export function SecurityPage({
 
 export function FeedPage({
   currentUser,
+  notice,
   posts,
   rooms,
   notifications,
 }: {
   currentUser: SessionUser;
+  notice: PageNotice;
   posts: FeedPost[];
   rooms: RoomView[];
   notifications: NotificationView[];
@@ -1333,6 +1337,8 @@ export function FeedPage({
           description="Every post here makes the ask visible, so people do less guessing."
           title="Feed"
         />
+
+        <StatusBanner notice={notice} />
 
         <div className="stack-list">
           {posts.map((post) => (
@@ -1528,12 +1534,14 @@ export function ComposePage({
 export function PostDetailPage({
   currentUser,
   isFresh = false,
+  notice,
   post,
   replyError,
   replyGuard,
 }: {
   currentUser: SessionUser;
   isFresh?: boolean;
+  notice: PageNotice;
   post: PostDetail;
   replyError: "reply-quality-cooldown" | "rate-limited" | null;
   replyGuard: ReplyQualityGuardView;
@@ -1546,6 +1554,8 @@ export function PostDetailPage({
           description="The ask stays visible as the conversation unfolds."
           title="Conversation"
         />
+
+        <StatusBanner notice={notice} />
 
         {isFresh && post.author.id === currentUser.id ? (
           <div className="status-banner">
@@ -1663,7 +1673,7 @@ export function PostDetailPage({
   );
 }
 
-export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
+export function RoomsPage({ notice, rooms }: { notice: PageNotice; rooms: RoomView[] }) {
   const joinedRooms = rooms.filter((room) => room.isMember);
   const publicRooms = rooms.filter((room) => room.visibility === "public");
 
@@ -1680,6 +1690,8 @@ export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
           description="Rooms gather people around a shared kind of conversation. Each post still gets to choose its own mode."
           title="Rooms"
         />
+
+        <StatusBanner notice={notice} />
 
         <section className="settings-grid room-summary-grid">
           <article className="panel settings-card card-shell">
@@ -1737,6 +1749,7 @@ export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
                   </Link>
                   <form action={room.isMember ? leaveRoomAction : joinRoomAction}>
                     <input name="roomId" type="hidden" value={room.id} />
+                    <input name="returnTo" type="hidden" value="/app/rooms" />
                     <SubmitButton className="button button-secondary" pendingLabel="Updating...">
                       {room.isMember ? "Leave room" : "Join room"}
                     </SubmitButton>
@@ -1821,9 +1834,11 @@ export function RoomsPage({ rooms }: { rooms: RoomView[] }) {
 }
 
 export function RoomDetailPage({
+  notice,
   room,
   posts,
 }: {
+  notice: PageNotice;
   room: RoomView;
   posts: FeedPost[];
 }) {
@@ -1834,6 +1849,7 @@ export function RoomDetailPage({
           actions={
             <form action={room.isMember ? leaveRoomAction : joinRoomAction}>
               <input name="roomId" type="hidden" value={room.id} />
+              <input name="returnTo" type="hidden" value={`/app/rooms/${room.id}`} />
               <SubmitButton className="button button-primary" pendingLabel="Updating...">
                 {room.isMember ? "Leave room" : "Join room"}
               </SubmitButton>
@@ -1843,6 +1859,8 @@ export function RoomDetailPage({
           description={room.description}
           title={room.name}
         />
+
+        <StatusBanner notice={notice} />
 
         <section className="settings-grid room-detail-summary-grid">
           <article className="panel settings-card card-shell">
@@ -1930,7 +1948,13 @@ export function RoomDetailPage({
   );
 }
 
-export function NotificationsPage({ notifications }: { notifications: NotificationView[] }) {
+export function NotificationsPage({
+  notice,
+  notifications,
+}: {
+  notice: PageNotice;
+  notifications: NotificationView[];
+}) {
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
   const priorityCount = notifications.filter((notification) => notification.priority === "high").length;
 
@@ -1949,6 +1973,8 @@ export function NotificationsPage({ notifications }: { notifications: Notificati
           description="Replies, ratings, and other movement around your posts show up here."
           title="Activity"
         />
+
+        <StatusBanner notice={notice} />
 
         {notifications.length ? (
           <div className="notification-list">
@@ -1994,7 +2020,7 @@ export function NotificationsPage({ notifications }: { notifications: Notificati
   );
 }
 
-export function ProfilePage({ profile }: { profile: ProfileView }) {
+export function ProfilePage({ notice, profile }: { notice: PageNotice; profile: ProfileView }) {
   return (
     <div className="workspace-grid">
       <section className="content-column">
@@ -2013,6 +2039,8 @@ export function ProfilePage({ profile }: { profile: ProfileView }) {
           description="Your profile shows how you tend to show up and how well your replies fit the moment."
           title={profile.user.username}
         />
+
+        <StatusBanner notice={notice} />
 
         <section className="settings-grid profile-summary-grid">
           <article className="panel settings-card card-shell">
