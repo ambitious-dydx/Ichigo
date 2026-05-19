@@ -977,7 +977,7 @@ export function AccountSettingsPage({
                         <input name="relationshipType" type="hidden" value={entry.type} />
                         <input name="returnTo" type="hidden" value="/app/settings/account" />
                         <SubmitButton className="button button-secondary subtle-button" pendingLabel="Updating...">
-                          Remove {entry.type}
+                          {entry.type === "block" ? "Unblock user" : "Unmute user"}
                         </SubmitButton>
                       </form>
                     </article>
@@ -2139,7 +2139,7 @@ export function ProfilePage({ profile }: { profile: ProfileView }) {
                     <input name="relationshipType" type="hidden" value={entry.type} />
                     <input name="returnTo" type="hidden" value="/app/profile" />
                     <SubmitButton className="button button-secondary subtle-button" pendingLabel="Updating...">
-                      Remove {entry.type}
+                      {entry.type === "block" ? "Unblock user" : "Unmute user"}
                     </SubmitButton>
                   </form>
                 </article>
