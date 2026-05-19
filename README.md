@@ -1,12 +1,13 @@
 # Ichigo
 
-Ichigo is an intentional feedback platform.
+Ichigo is a context-first feedback product.
 
 ## What Exists Now
 
 - a full-stack `Next.js` application with frontend pages, backend route handlers, persistent local storage, sessions, and seeded data
 - product documentation in `Ichigo Project Development Documentation.pdf`
 - early brand assets in `assets/logo/`
+- current execution-state docs in `README.md` and `docs/mvp-gap-analysis.md`
 
 ## Product Thesis
 
@@ -15,17 +16,47 @@ Ichigo is an intentional feedback platform.
 - the system rewards emotionally aligned responses instead of random feedback
 - the core principle is: `a post is not just content. It is content plus context.`
 
+## Current Positioning
+
+Ichigo is currently positioned as a feedback product for:
+
+- founders
+- builders
+- a narrow slice of creators
+
+This is the current beta wedge.
+
+Ichigo is not currently being positioned as a general social network.
+Long-term expansion may happen later, but the current product should be read as a context-shaped feedback tool for work, decisions, drafts, launches, and high-signal conversation.
+
 ## Application Scope
 
 The current application includes:
 
-- landing page communicating the product thesis and context-first principle
-- registration and login
+- landing page communicating the product thesis and beta wedge
+- email/password registration and login
+- Google sign-in
+- email verification gating
+- password reset and account recovery
 - protected application routes
-- persistent feed, posts, comments, ratings, rooms, notifications, profile, and moderation flows
-- local backend APIs aligned to the documentation draft
-- seeded data covering rooms, posts, comments, notifications, and moderation records
-- heuristic mode-alignment and mode-suggestion services as the initial AI layer
+- onboarding before full app usage
+- persistent feed, compose, thread, rooms, notifications, profile, settings, and moderation flows
+- reply-mode assistance, classification, rewrite guidance, and cooldown enforcement
+- local backend APIs aligned to the current implementation
+- seeded data covering rooms, posts, comments, notifications, moderation records, and a demo account
+- heuristic mode-alignment, rewrite, and mode-suggestion services as the current AI layer
+
+## Current State
+
+Best current label:
+
+- `late alpha`
+- `closed beta candidate`
+
+Not yet:
+
+- `public MVP`
+- `general social platform`
 
 ## Local Development
 
