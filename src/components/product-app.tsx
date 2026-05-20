@@ -30,6 +30,7 @@ import {
   createCommentAction,
   createPostAction,
   createRoomAction,
+  deleteCommentAction,
   deletePostAction,
   joinRoomAction,
   leaveRoomAction,
@@ -2128,11 +2129,27 @@ export function ProfilePage({ notice, profile }: { notice: PageNotice; profile: 
           {profile.recentComments.length ? (
             <div className="stack-list">
               {profile.recentComments.map((comment) => (
-                <article key={comment.id} className="reply-card">
+                <article key={comment.id} className="reply-card card-shell">
                   <span>
                     {describeAlignment(comment.alignmentClassification)} · {comment.modeAlignmentScore}
                   </span>
                   <p>{comment.content}</p>
+                  <div className="card-footer">
+                    <Link className="inline-link" href={`/app/posts/${comment.postId}`}>
+                      Open thread
+                    </Link>
+                    <form action={deleteCommentAction}>
+                      <input name="postId" type="hidden" value={comment.postId} />
+                      <input name="commentId" type="hidden" value={comment.id} />
+                      <input name="returnTo" type="hidden" value="/app/profile" />
+                      <SubmitButton
+                        className="button button-secondary subtle-button"
+                        pendingLabel="Deleting..."
+                      >
+                        Delete reply
+                      </SubmitButton>
+                    </form>
+                  </div>
                 </article>
               ))}
             </div>
@@ -2564,7 +2581,18 @@ function CommentCard({
             </SubmitButton>
           </form>
         </div>
-      ) : null}
+      ) : (
+        <div className="comment-actions-grid">
+          <form action={deleteCommentAction}>
+            <input name="postId" type="hidden" value={postId} />
+            <input name="commentId" type="hidden" value={comment.id} />
+            <input name="returnTo" type="hidden" value={`/app/posts/${postId}`} />
+            <SubmitButton className="button button-secondary subtle-button" pendingLabel="Deleting...">
+              Delete reply
+            </SubmitButton>
+          </form>
+        </div>
+      )}
     </article>
   );
 }

@@ -290,6 +290,7 @@ export async function deleteCommentAction(formData: FormData) {
   const currentUser = await requireCurrentUser();
   const postId = asString(formData.get("postId"));
   const commentId = asString(formData.get("commentId"));
+  const returnTo = asString(formData.get("returnTo"));
 
   if (!commentId) {
     return;
@@ -299,6 +300,10 @@ export async function deleteCommentAction(formData: FormData) {
   revalidatePath(`/app/posts/${postId}`);
   revalidatePath("/app");
   revalidatePath("/app/profile");
+
+  if (returnTo) {
+    redirect(withNotice(returnTo, { success: "comment-deleted" }));
+  }
 }
 
 export async function rateCommentAction(formData: FormData) {

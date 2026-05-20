@@ -45,6 +45,11 @@ export function getWorkspaceNotice(success?: string, error?: string): WorkspaceN
         tone: "success",
         text: "Your profile was updated.",
       };
+    case "comment-deleted":
+      return {
+        tone: "success",
+        text: "Your reply was deleted.",
+      };
     case "notifications-read":
       return {
         tone: "success",

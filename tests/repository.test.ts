@@ -11,6 +11,7 @@ import {
   createReportRecord,
   createRoomRecord,
   createUserRecord,
+  deleteCommentRecord,
   getAppHome,
   getModerationOverview,
   getPostDetail,
@@ -329,5 +330,29 @@ describe("repository integration", () => {
     expect(health.onboardedUsers).toBeGreaterThan(0);
     expect(health.postsWithReplies).toBeGreaterThan(0);
     expect(health.modeUsage.length).toBeGreaterThan(0);
+  });
+
+  it("allows comment authors to delete their own replies", () => {
+    const postId = createPostRecord({
+      userId: "user_ada",
+      content: "Tell me which launch path gets signal fastest.",
+      responseMode: "advise",
+      visibility: "public",
+      roomId: "room_public",
+      isAnonymous: false,
+      tags: ["launch"],
+    });
+
+    const reply = createCommentRecord({
+      postId,
+      userId: DEMO_ACCOUNT.id,
+      content: "Try the smallest test that gets real user feedback this week.",
+    });
+
+    expect(getPostDetail(postId, DEMO_ACCOUNT.id)?.comments.some((entry) => entry.id === reply.commentId)).toBe(true);
+
+    deleteCommentRecord(reply.commentId, DEMO_ACCOUNT.id);
+
+    expect(getPostDetail(postId, DEMO_ACCOUNT.id)?.comments.some((entry) => entry.id === reply.commentId)).toBe(false);
   });
 });

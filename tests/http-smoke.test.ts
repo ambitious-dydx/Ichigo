@@ -222,6 +222,57 @@ describe("http smoke", () => {
     expect(typeof rewritePayload.reason).toBe("string");
   });
 
+  it("allows an authenticated user to delete their own comment through the API", async () => {
+    const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        identifier: DEMO_ACCOUNT.email,
+        password: DEMO_ACCOUNT.password,
+      }),
+    });
+
+    expect(loginResponse.status).toBe(200);
+    const sessionCookie = getSessionCookie(loginResponse);
+
+    const createResponse = await fetch(`${baseUrl}/api/posts/post_seed_1/comments`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Cookie: sessionCookie,
+      },
+      body: JSON.stringify({
+        content: "Try the path that gets you the fastest learning with the least extra build time.",
+      }),
+    });
+    const createPayload = (await createResponse.json()) as { commentId: string };
+
+    expect(createResponse.status).toBe(201);
+    expect(createPayload.commentId).toBeTruthy();
+
+    const deleteResponse = await fetch(`${baseUrl}/api/comments/${createPayload.commentId}`, {
+      method: "DELETE",
+      headers: {
+        Cookie: sessionCookie,
+      },
+    });
+
+    expect(deleteResponse.status).toBe(200);
+
+    const commentsResponse = await fetch(`${baseUrl}/api/posts/post_seed_1/comments`, {
+      headers: {
+        Cookie: sessionCookie,
+      },
+    });
+    const commentsPayload = (await commentsResponse.json()) as {
+      comments: Array<{ id: string }>;
+    };
+
+    expect(commentsPayload.comments.some((comment) => comment.id === createPayload.commentId)).toBe(false);
+  });
+
   it("enforces reply-quality cooldowns through the HTTP API", async () => {
     const loginResponse = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
