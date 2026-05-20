@@ -1558,24 +1558,31 @@ export function PostDetailPage({
         <StatusBanner notice={notice} />
 
         {isFresh && post.author.id === currentUser.id ? (
-          <div className="status-banner">
-            Your tone is set. Replies to this thread will be read against the contract you just chose.
-          </div>
+          <DismissibleStatusBanner
+            clearKeys={["fresh"]}
+            text="Your tone is set. Replies to this thread will be read against the contract you just chose."
+            tone="success"
+          />
         ) : null}
 
         {replyError === "reply-quality-cooldown" || replyGuard.isOnCooldown ? (
-          <div className="status-banner status-banner-error">
-            Replying is paused for now.
-            {replyGuard.cooldownEndsAt
-              ? ` You can try again after ${formatTime(replyGuard.cooldownEndsAt)}.`
-              : " Let the cooldown finish, then try again."}
-          </div>
+          <DismissibleStatusBanner
+            clearKeys={["error"]}
+            text={`Replying is paused for now.${
+              replyGuard.cooldownEndsAt
+                ? ` You can try again after ${formatTime(replyGuard.cooldownEndsAt)}.`
+                : " Let the cooldown finish, then try again."
+            }`}
+            tone="error"
+          />
         ) : null}
 
         {replyError === "rate-limited" ? (
-          <div className="status-banner status-banner-error">
-            You are replying too quickly right now. Pause for a bit, then try again.
-          </div>
+          <DismissibleStatusBanner
+            clearKeys={["error"]}
+            text="You are replying too quickly right now. Pause for a bit, then try again."
+            tone="error"
+          />
         ) : null}
 
         <PostCard

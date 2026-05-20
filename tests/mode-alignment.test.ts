@@ -28,6 +28,17 @@ describe("mode alignment", () => {
     expect(result.alignmentScore).toBeGreaterThanOrEqual(65);
   });
 
+  it("penalizes replies that fit the mode loosely but miss the actual ask", () => {
+    const result = classifyCommentAlignment({
+      postContent: "I have three directions for my side project and need help narrowing the decision.",
+      responseMode: "advise",
+      commentContent: "Try getting more sleep and drink more water this week.",
+    });
+
+    expect(["borderline", "violation"]).toContain(result.classification);
+    expect(result.alignmentScore).toBeLessThan(65);
+  });
+
   it("suggests the expected response mode from content", () => {
     expect(suggestModeFromContent("Today feels heavy and I am overwhelmed.")).toBe("comfort");
     expect(suggestModeFromContent("Should I choose option A or B? Help me decide.")).toBe("advise");

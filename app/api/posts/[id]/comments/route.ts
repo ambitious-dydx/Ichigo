@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  isCommentRateLimitError,
+  submitCommentForUser,
+} from "../../../../../src/server/comment-service";
+import {
   getCurrentOnboardedUserOrThrowApi,
   getCurrentUser,
   isOnboardingRequiredError,
@@ -7,7 +11,6 @@ import {
 } from "../../../../../src/server/auth";
 import { jsonError } from "../../../../../src/server/http";
 import {
-  createCommentRecord,
   getPostDetail,
   isReplyQualityCooldownError,
 } from "../../../../../src/server/repository";
@@ -40,7 +43,7 @@ export async function POST(
       return jsonError("Comment content is required");
     }
 
-    const result = createCommentRecord({
+    const result = submitCommentForUser({
       postId: id,
       userId: user.id,
       content: body.content.trim(),
@@ -48,6 +51,10 @@ export async function POST(
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
+    if (isCommentRateLimitError(error)) {
+      return jsonError("You are replying too quickly right now. Pause for a bit, then try again.", 429);
+    }
+
     if (isVerificationRequiredError(error)) {
       return jsonError("Verify your email before replying", 403);
     }

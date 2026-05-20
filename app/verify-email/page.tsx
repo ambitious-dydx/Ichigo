@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DismissibleStatusBanner } from "../../src/components/dismissible-status-banner";
 import { ThemeLogo } from "../../src/components/theme-logo";
 import { ThemeToggle } from "../../src/components/theme-toggle";
 import { getCurrentUser, verifyEmailToken } from "../../src/server/auth";
@@ -61,11 +62,7 @@ export default async function VerifyEmailPage({
             Ichigo uses verified email for account recovery and trust.
           </p>
 
-          {notice ? (
-            <p className={notice.tone === "error" ? "form-error" : "status-banner"}>
-              {notice.text}
-            </p>
-          ) : null}
+          {notice ? <DismissibleStatusBanner text={notice.text} tone={notice.tone} /> : null}
 
           <div className="form-actions">
             <Link className="button button-primary" href={returnHref}>

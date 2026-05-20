@@ -245,7 +245,7 @@ describe("http smoke", () => {
           Cookie: sessionCookie,
         },
         body: JSON.stringify({
-          content: "I can't help with this.",
+          content: "Try getting more sleep and go for a walk this week.",
         }),
       });
 

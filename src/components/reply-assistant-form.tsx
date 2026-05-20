@@ -1,8 +1,8 @@
 "use client";
 
 import { useDeferredValue, useEffect, useState } from "react";
-import { createCommentAction } from "../server/actions";
-import { SubmitButton } from "./submit-button";
+import { useRouter } from "next/navigation";
+import { DismissibleStatusBanner } from "./dismissible-status-banner";
 
 type AlignmentClassification = "match" | "acceptable" | "borderline" | "violation";
 
@@ -18,6 +18,12 @@ type AnalysisState = {
   classification: AlignmentClassification;
   reason: string;
   suggestedRewrite: string | null;
+};
+
+type ReplyBanner = {
+  key: string;
+  tone: "success" | "error";
+  text: string;
 };
 
 function describeVerdict(classification: AlignmentClassification) {
@@ -41,11 +47,14 @@ export function ReplyAssistantForm({
   responseGuidance,
   cooldownEndsAt = null,
 }: ReplyAssistantFormProps) {
+  const router = useRouter();
   const [draft, setDraft] = useState("");
   const [analysis, setAnalysis] = useState<AnalysisState | null>(null);
   const [analysisText, setAnalysisText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [guardMessage, setGuardMessage] = useState("");
+  const [banner, setBanner] = useState<ReplyBanner | null>(null);
   const [mounted, setMounted] = useState(false);
   const deferredDraft = useDeferredValue(draft);
   const isCoolingDown = Boolean(cooldownEndsAt);
@@ -122,9 +131,10 @@ export function ReplyAssistantForm({
     setGuardMessage("");
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     if (isCoolingDown) {
-      event.preventDefault();
       setGuardMessage(
         "Replying is paused for now. Let the cooldown finish before adding another response.",
       );
@@ -136,28 +146,89 @@ export function ReplyAssistantForm({
       analysisText === draft.trim() &&
       analysis.classification === "violation"
     ) {
-      event.preventDefault();
       setGuardMessage(
         "This draft currently breaks the reply contract for this post. Rewrite it or use Ichigo's suggestion before sending.",
       );
+      return;
+    }
+
+    const content = draft.trim();
+
+    if (!content) {
+      setGuardMessage("Write something before you send the reply.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setGuardMessage("");
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            cooldownEndsAt?: string;
+            alignment?: { classification: AlignmentClassification };
+            status?: string;
+          }
+        | null;
+
+      if (!response.ok) {
+        if (response.status === 429 && payload?.cooldownEndsAt) {
+          setGuardMessage(
+            `Replying is paused for now. Try again after ${new Date(payload.cooldownEndsAt).toLocaleString()}.`,
+          );
+          return;
+        }
+
+        setGuardMessage(payload?.error ?? "Ichigo could not send this reply right now.");
+        return;
+      }
+
+      setDraft("");
+      setAnalysis(null);
+      setAnalysisText("");
+      setBanner({
+        key: `${Date.now()}`,
+        tone: payload?.status === "flagged" ? "error" : "success",
+        text:
+          payload?.status === "flagged"
+            ? "Reply sent, but Ichigo flagged it as off-contract. Re-read the ask before replying again."
+            : "Reply sent.",
+      });
+      router.refresh();
+    } catch {
+      setGuardMessage("Ichigo could not send this reply right now.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <form action={createCommentAction} className="inline-form-stack" onSubmit={handleSubmit}>
-      <input name="postId" type="hidden" value={postId} />
+    <form className="inline-form-stack" onSubmit={handleSubmit}>
       <div className="assistant-intro">
         <strong>{responsePrompt}</strong>
         <span>{responseGuidance}</span>
       </div>
+      {banner ? (
+        <DismissibleStatusBanner key={banner.key} text={banner.text} tone={banner.tone} />
+      ) : null}
       <textarea
         className="composer-textarea"
-        disabled={isCoolingDown}
-        name="content"
+        disabled={isCoolingDown || isSubmitting}
         onChange={(event) => setDraft(event.target.value)}
         placeholder={
           isCoolingDown
             ? "Replying is paused while Ichigo resets your reply health."
+            : isSubmitting
+              ? "Sending your reply..."
             : "Reply in the tone this post asked for."
         }
         rows={5}
@@ -168,7 +239,7 @@ export function ReplyAssistantForm({
       <div className="assistant-toolbar">
         <button
           className="button button-secondary subtle-button"
-          disabled={isCoolingDown}
+          disabled={isCoolingDown || isSubmitting}
           onClick={() => void runAnalysis(draft)}
           type="button"
         >
@@ -178,7 +249,7 @@ export function ReplyAssistantForm({
         {analysis?.suggestedRewrite ? (
           <button
             className="button button-secondary subtle-button"
-            disabled={isCoolingDown}
+            disabled={isCoolingDown || isSubmitting}
             onClick={applySuggestedRewrite}
             type="button"
           >
@@ -213,13 +284,13 @@ export function ReplyAssistantForm({
 
       {guardMessage ? <p className="form-error">{guardMessage}</p> : null}
 
-      <SubmitButton
+      <button
         className="button button-primary"
-        disabled={isCoolingDown}
-        pendingLabel="Posting reply..."
+        disabled={isCoolingDown || isSubmitting}
+        type="submit"
       >
-        {isCoolingDown ? "Replying paused" : "Send reply"}
-      </SubmitButton>
+        {isCoolingDown ? "Replying paused" : isSubmitting ? "Posting reply..." : "Send reply"}
+      </button>
     </form>
   );
 }

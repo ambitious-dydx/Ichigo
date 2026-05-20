@@ -305,7 +305,7 @@ describe("repository integration", () => {
       const result = createCommentRecord({
         postId,
         userId: DEMO_ACCOUNT.id,
-        content: "I can't help with this.",
+        content: "Try getting more sleep and go for a walk this week.",
       });
 
       expect(["borderline", "violation"]).toContain(result.alignment.classification);

@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ModeId } from "../modes";
 import {
+  isCommentRateLimitError,
+  submitCommentForUser,
+} from "./comment-service";
+import {
   changePassword,
   finishOnboarding,
   getCurrentSessionId,
@@ -242,42 +246,23 @@ export async function createCommentAction(formData: FormData) {
     return;
   }
 
-  const rateLimit = guardRateLimit(currentUser.id, "create-comment", 24, 60 * 60 * 1000);
-
-  if (rateLimit.blocked) {
-    redirect(`/app/posts/${postId}?error=rate-limited`);
-  }
-
-  let result;
-
   try {
-    result = createCommentRecord({
+    submitCommentForUser({
       postId,
       userId: currentUser.id,
       content,
     });
   } catch (error) {
+    if (isCommentRateLimitError(error)) {
+      redirect(`/app/posts/${postId}?error=rate-limited`);
+    }
+
     if (isReplyQualityCooldownError(error)) {
       redirect(`/app/posts/${postId}?error=reply-quality-cooldown`);
     }
 
     throw error;
   }
-  createProductEvent({
-    userId: currentUser.id,
-    eventName: "comment.created",
-    route: `/app/posts/${postId}`,
-    metadata: {
-      alignment: result.alignment.classification,
-      score: result.alignment.alignmentScore,
-      status: result.status,
-    },
-  });
-
-  revalidatePath(`/app/posts/${postId}`);
-  revalidatePath("/app/feed");
-  revalidatePath("/app");
-  revalidatePath("/app/profile");
 }
 
 export async function updateCommentAction(formData: FormData) {
