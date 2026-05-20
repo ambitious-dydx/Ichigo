@@ -160,7 +160,6 @@ const readCurrentAuthState = cache(async (): Promise<AuthState> => {
   const session = getSessionWithUserByTokenHash(tokenHash);
 
   if (!session) {
-    cookieStore.delete(SESSION_COOKIE_NAME);
     return null;
   }
 
@@ -173,16 +172,14 @@ const readCurrentAuthState = cache(async (): Promise<AuthState> => {
     Date.now() - lastSeenAt.getTime() >= activityWindowMs;
 
   if (shouldRefresh) {
-    const nextExpiry = sessionExpiryDate();
     const userAgent = await getRequestUserAgent();
 
     touchSessionByTokenHash({
       tokenHash,
       userAgent,
       lastSeenAt: nowIso(),
-      expiresAt: nextExpiry.toISOString(),
+      expiresAt: session.expiresAt,
     });
-    await syncSessionCookie(sessionToken, nextExpiry);
   }
 
   return {
