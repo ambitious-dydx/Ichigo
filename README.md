@@ -45,6 +45,7 @@ The current application includes:
 - local backend APIs aligned to the current implementation
 - seeded data covering rooms, posts, comments, notifications, moderation records, and a demo account
 - heuristic mode-alignment, rewrite, and mode-suggestion services as the current AI layer
+- optional Gemini-powered second-pass fit checking for manual `Check fit` and rewrite refinement when `GEMINI_API_KEY` is configured
 
 ## Current State
 
@@ -160,6 +161,20 @@ Password reset emails link to:
 
 ```text
 /reset-password?token=...
+```
+
+## Optional Gemini Fit Checking
+
+To enable Gemini as a second-pass checker for reply fit and rewrite refinement:
+
+```bash
+GEMINI_API_KEY=...
+```
+
+Optional model override:
+
+```bash
+GEMINI_FIT_MODEL=gemini-2.5-flash-lite
 ```
 
 ## Demo Account

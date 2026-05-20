@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
+import { analyzeCommentFitWithGemini } from "../../../../src/server/gemini-fit";
 import { jsonError } from "../../../../src/server/http";
-import { classifyCommentForPost } from "../../../../src/server/repository";
+import {
+  classifyCommentForPost,
+  getCommentFitContext,
+} from "../../../../src/server/repository";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {
@@ -13,15 +17,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = classifyCommentForPost({
+    const heuristic = classifyCommentForPost({
       postId: body.postId,
       commentContent: body.commentContent.trim(),
     });
+    const result = await analyzeCommentFitWithGemini({
+      context: getCommentFitContext(body.postId),
+      commentContent: body.commentContent.trim(),
+      heuristic,
+    });
 
     return NextResponse.json({
-      suggestedRewrite: result.suggestedRewrite,
-      classification: result.classification,
-      reason: result.reason,
+      suggestedRewrite: result.result.suggestedRewrite,
+      classification: result.result.classification,
+      reason: result.result.reason,
+      provider: result.provider,
+      model: result.model,
     });
   } catch (error) {
     return jsonError("Post not found", 404);

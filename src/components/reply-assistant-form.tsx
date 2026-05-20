@@ -18,6 +18,8 @@ type AnalysisState = {
   classification: AlignmentClassification;
   reason: string;
   suggestedRewrite: string | null;
+  provider?: "heuristic" | "gemini";
+  model?: string | null;
 };
 
 type ReplyBanner = {
@@ -63,7 +65,7 @@ export function ReplyAssistantForm({
     setMounted(true);
   }, []);
 
-  async function runAnalysis(input: string) {
+  async function runAnalysis(input: string, deep = false) {
     const trimmed = input.trim();
 
     if (trimmed.length < 18) {
@@ -84,6 +86,7 @@ export function ReplyAssistantForm({
         body: JSON.stringify({
           postId,
           commentContent: trimmed,
+          deep,
         }),
       });
 
@@ -113,7 +116,7 @@ export function ReplyAssistantForm({
     }
 
     const timeout = window.setTimeout(() => {
-      void runAnalysis(trimmed);
+      void runAnalysis(trimmed, false);
     }, 450);
 
     return () => {
@@ -240,7 +243,7 @@ export function ReplyAssistantForm({
         <button
           className="button button-secondary subtle-button"
           disabled={isCoolingDown || isSubmitting}
-          onClick={() => void runAnalysis(draft)}
+          onClick={() => void runAnalysis(draft, true)}
           type="button"
         >
           {isAnalyzing ? "Checking fit..." : "Check fit"}
@@ -265,6 +268,11 @@ export function ReplyAssistantForm({
             <span>{analysis.alignmentScore}/100</span>
           </div>
           <p>{analysis.reason}</p>
+          {analysis.provider === "gemini" ? (
+            <p className="card-footer-note">
+              Checked with Gemini{analysis.model ? ` · ${analysis.model}` : ""}
+            </p>
+          ) : null}
           {analysis.suggestedRewrite ? (
             <div className="assistant-rewrite">
               <span className="card-footer-note">Suggested rewrite</span>

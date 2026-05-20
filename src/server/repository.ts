@@ -2233,10 +2233,7 @@ export function suggestMode(content: string) {
   return suggestModeFromContent(content);
 }
 
-export function classifyCommentForPost(input: {
-  postId: string;
-  commentContent: string;
-}) {
+export function getCommentFitContext(postId: string) {
   const db = getDb();
   const row = db
     .prepare(`
@@ -2245,16 +2242,29 @@ export function classifyCommentForPost(input: {
       LEFT JOIN rooms ON rooms.id = posts.room_id
       WHERE posts.id = ?
     `)
-    .get(input.postId) as Record<string, unknown> | undefined;
+    .get(postId) as Record<string, unknown> | undefined;
 
   if (!row) {
     throw new Error("Post not found");
   }
 
-  return classifyCommentAlignment({
+  return {
     postContent: String(row.content),
     responseMode: String(row.response_mode) as ModeId,
-    commentContent: input.commentContent,
     roomRules: row.rules ? String(row.rules) : undefined,
+  };
+}
+
+export function classifyCommentForPost(input: {
+  postId: string;
+  commentContent: string;
+}) {
+  const context = getCommentFitContext(input.postId);
+
+  return classifyCommentAlignment({
+    postContent: context.postContent,
+    responseMode: context.responseMode,
+    commentContent: input.commentContent,
+    roomRules: context.roomRules,
   });
 }
