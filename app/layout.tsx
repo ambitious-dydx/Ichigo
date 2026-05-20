@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { ThemeProvider } from "../src/components/theme-provider";
 import "../src/styles.css";
 
@@ -37,7 +38,9 @@ export default function RootLayout({
   return (
     <html data-theme="light" lang="en" style={{ colorScheme: "light" }} suppressHydrationWarning>
       <body>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <Script id="ichigo-theme-init" strategy="beforeInteractive">
+          {themeScript}
+        </Script>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
