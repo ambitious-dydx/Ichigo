@@ -97,7 +97,6 @@ export default async function VerifyGatePage({
               inputMode="numeric"
               maxLength={6}
               name="code"
-              pattern="[0-9]{6}"
               placeholder="6-digit verification code"
               required
               type="text"

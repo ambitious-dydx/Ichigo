@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_PATTERN,
-  PASSWORD_POLICY_FULL_HINT,
+  PASSWORD_MAX_LENGTH,
   PASSWORD_POLICY_SHORT_HINT,
 } from "../../src/password-policy";
 import { DismissibleStatusBanner } from "../../src/components/dismissible-status-banner";
@@ -94,23 +92,19 @@ export default async function RegisterPage({
             <input className="text-input" name="email" placeholder="Email" type="email" required />
             <PasswordField
               className="text-input"
-              minLength={PASSWORD_MIN_LENGTH}
+              maxLength={PASSWORD_MAX_LENGTH}
               name="password"
-              pattern={PASSWORD_PATTERN}
               placeholder="Password"
               required
-              title={PASSWORD_POLICY_FULL_HINT}
+              showPolicy
             />
             <PasswordField
               className="text-input"
-              minLength={PASSWORD_MIN_LENGTH}
+              maxLength={PASSWORD_MAX_LENGTH}
               name="confirmPassword"
-              pattern={PASSWORD_PATTERN}
               placeholder="Confirm password"
               required
-              title={PASSWORD_POLICY_FULL_HINT}
             />
-            <p className="support-copy">{PASSWORD_POLICY_FULL_HINT}</p>
             <SubmitButton className="button button-primary" pendingLabel="Creating account...">
               Create account
             </SubmitButton>

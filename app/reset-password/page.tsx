@@ -1,8 +1,6 @@
 import Link from "next/link";
 import {
-  PASSWORD_MIN_LENGTH,
-  PASSWORD_PATTERN,
-  PASSWORD_POLICY_FULL_HINT,
+  PASSWORD_MAX_LENGTH,
   PASSWORD_POLICY_SHORT_HINT,
 } from "../../src/password-policy";
 import { PasswordField } from "../../src/components/password-field";
@@ -58,23 +56,19 @@ export default async function ResetPasswordPage({
             <input name="token" type="hidden" value={token ?? ""} />
             <PasswordField
               className="text-input"
-              minLength={PASSWORD_MIN_LENGTH}
+              maxLength={PASSWORD_MAX_LENGTH}
               name="nextPassword"
-              pattern={PASSWORD_PATTERN}
               placeholder="New password"
               required
-              title={PASSWORD_POLICY_FULL_HINT}
+              showPolicy
             />
             <PasswordField
               className="text-input"
-              minLength={PASSWORD_MIN_LENGTH}
+              maxLength={PASSWORD_MAX_LENGTH}
               name="confirmPassword"
-              pattern={PASSWORD_PATTERN}
               placeholder="Confirm new password"
               required
-              title={PASSWORD_POLICY_FULL_HINT}
             />
-            <p className="support-copy">{PASSWORD_POLICY_FULL_HINT}</p>
             <SubmitButton className="button button-primary" pendingLabel="Resetting...">
               Reset password
             </SubmitButton>
