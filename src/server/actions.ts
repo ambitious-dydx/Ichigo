@@ -22,6 +22,7 @@ import {
   signOutOtherSessions,
   signOutUser,
   updateAccountDetails,
+  establishSession,
   verifyEmailCode,
 } from "./auth";
 import {
@@ -167,10 +168,15 @@ export async function registerAction(formData: FormData) {
   try {
     delivery = await requestEmailVerification(result.user.id);
   } catch {
-    redirect("/login?error=verification-email-failed");
+    redirect("/register?error=verification-email-failed");
   }
 
-  redirect("/login?success=verification-code-sent");
+  await establishSession(result.user.id);
+
+  const previewParam = delivery.previewCode
+    ? `&code=${encodeURIComponent(delivery.previewCode)}`
+    : "";
+  redirect(`/app/verify?success=verification-code-sent${previewParam}`);
 }
 
 export async function logoutAction() {

@@ -155,7 +155,6 @@ function wrapEmailHtml(title: string, intro: string, ctaLabel: string, ctaUrl: s
 function wrapVerificationCodeHtml(input: {
   username: string;
   verificationCode: string;
-  verificationPageUrl: string;
 }) {
   return `
     <div style="margin:0;padding:32px 20px;background:#f7f5f2;font-family:Arial,sans-serif;color:#221c24;">
@@ -175,11 +174,8 @@ function wrapVerificationCodeHtml(input: {
             ${input.verificationCode}
           </p>
         </div>
-        <a href="${input.verificationPageUrl}" style="display:inline-block;padding:14px 22px;border-radius:14px;background:#f04d47;color:#ffffff;text-decoration:none;font-weight:700;">
-          Open verification screen
-        </a>
         <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#6d6670;">
-          If you did not request this, you can ignore this email.
+          Return to Ichigo and enter this code. If you did not request this, you can ignore this email.
         </p>
       </div>
     </div>
@@ -190,7 +186,6 @@ export async function sendVerificationEmail(input: {
   to: string;
   username: string;
   verificationCode: string;
-  verificationPageUrl: string;
 }) {
   return sendTransactionalEmail({
     to: input.to,
@@ -201,8 +196,7 @@ export async function sendVerificationEmail(input: {
       "Verify your Ichigo email address with this code:",
       input.verificationCode,
       "",
-      "Enter it on this screen:",
-      input.verificationPageUrl,
+      "Return to Ichigo and enter it on the verification screen.",
       "",
       "If you did not request this, you can ignore this email.",
     ].join("\n"),

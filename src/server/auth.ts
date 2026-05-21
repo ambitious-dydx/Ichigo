@@ -421,7 +421,6 @@ export async function requestEmailVerification(userId: string) {
     to: user.email,
     username: user.username,
     verificationCode,
-    verificationPageUrl: buildAppUrl("/app/verify"),
   });
 
   createProductEvent({

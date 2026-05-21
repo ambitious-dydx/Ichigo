@@ -32,6 +32,8 @@ function getRegisterErrorMessage(error?: string) {
       return "That email is already in use.";
     case "username-exists":
       return "That username is already taken.";
+    case "verification-email-failed":
+      return "Your account was created, but Ichigo could not send the verification code yet.";
     default:
       return error ? "We could not create your account." : null;
   }
