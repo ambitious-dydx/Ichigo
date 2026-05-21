@@ -29,6 +29,7 @@ import {
   getUserByEmail,
   getUserById,
   getUserByUsername,
+  invalidateActiveAccountTokens,
   getUserPasswordHashById,
   markUserEmailVerified,
   revokeOtherSessions,
@@ -410,6 +411,11 @@ export async function requestEmailVerification(userId: string) {
   if (!user) {
     throw new Error("User not found");
   }
+
+  invalidateActiveAccountTokens({
+    userId,
+    type: "email_verification",
+  });
 
   const verificationCode = createNumericCode(6);
   createAccountToken({

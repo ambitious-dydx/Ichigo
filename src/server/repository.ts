@@ -689,6 +689,21 @@ export function consumeAccountTokenForUser(input: {
   };
 }
 
+export function invalidateActiveAccountTokens(input: {
+  userId: string;
+  type: AccountTokenType;
+}) {
+  const db = getDb();
+  db.prepare(`
+    UPDATE account_tokens
+    SET used_at = ?
+    WHERE user_id = ?
+      AND type = ?
+      AND used_at IS NULL
+      AND expires_at > ?
+  `).run(nowIso(), input.userId, input.type, nowIso());
+}
+
 export function listActiveAccountTokens(userId: string) {
   const db = getDb();
   const rows = db

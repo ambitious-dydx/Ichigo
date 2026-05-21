@@ -4,6 +4,7 @@ import {
   clearUserRelationship,
   completeUserOnboarding,
   consumeAccountToken,
+  consumeAccountTokenForUser,
   countJoinedRooms,
   createAccountToken,
   createCommentRecord,
@@ -24,6 +25,7 @@ import {
   leaveRoom,
   listBlockedUsers,
   listFeedPosts,
+  invalidateActiveAccountTokens,
   listModerationReports,
   listNotifications,
   listRooms,
@@ -113,6 +115,39 @@ describe("repository integration", () => {
     const consumed = consumeAccountToken(token, "email_verification");
     expect(consumed?.userId).toBe(user?.id);
     expect(consumeAccountToken(token, "email_verification")).toBeNull();
+
+    const firstReplacement = createAccountToken({
+      userId: user?.id ?? "",
+      type: "email_verification",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      token: "111111",
+    });
+
+    invalidateActiveAccountTokens({
+      userId: user?.id ?? "",
+      type: "email_verification",
+    });
+
+    const secondReplacement = createAccountToken({
+      userId: user?.id ?? "",
+      type: "email_verification",
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      token: "222222",
+    });
+
+    expect(
+      consumeAccountTokenForUser({
+        userId: user?.id ?? "",
+        type: "email_verification",
+        token: firstReplacement,
+      }),
+    ).toBeNull();
+    const latestTokenUse = consumeAccountTokenForUser({
+      userId: user?.id ?? "",
+      type: "email_verification",
+      token: secondReplacement,
+    });
+    expect(latestTokenUse?.userId).toBe(user?.id);
 
     expect(listFeedPosts(DEMO_ACCOUNT.id).some((post) => post.author.id === "user_ada")).toBe(true);
 
