@@ -42,6 +42,7 @@ const SESSION_COOKIE_NAME = "ichigo_session";
 const SESSION_TTL_DAYS = 30;
 const SESSION_REFRESH_WINDOW_DAYS = 7;
 const SESSION_ACTIVITY_REFRESH_HOURS = 12;
+const EMAIL_VERIFICATION_TTL_MINUTES = 30;
 
 type AuthState = {
   sessionId: string;
@@ -414,7 +415,7 @@ export async function requestEmailVerification(userId: string) {
   createAccountToken({
     userId,
     type: "email_verification",
-    expiresAt: hoursFromNow(24).toISOString(),
+    expiresAt: hoursFromNow(EMAIL_VERIFICATION_TTL_MINUTES / 60).toISOString(),
     token: verificationCode,
   });
   const delivery = await sendVerificationEmail({
