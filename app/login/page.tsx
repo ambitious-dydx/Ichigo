@@ -18,7 +18,7 @@ function getLoginErrorMessage(error?: string) {
     case "invalid-credentials":
       return "That sign-in information does not match our records.";
     case "email-not-verified":
-      return "Verify your email before signing in. Ichigo has sent you a fresh verification link.";
+      return "Verify your email before signing in. Ichigo has sent you a fresh verification code.";
     case "email-not-verified-send-failed":
       return "Verify your email before signing in. Ichigo could not send the verification email yet.";
     case "verification-email-failed":
@@ -46,8 +46,8 @@ function getLoginSuccessMessage(success?: string) {
       return "That session was closed. Sign in again if you want to keep working.";
     case "password-reset":
       return "Your password was reset. Sign in with the new one.";
-    case "verification-email-sent":
-      return "Check your inbox for a verification link before signing in.";
+    case "verification-code-sent":
+      return "Check your inbox for a verification code before signing in.";
     default:
       return null;
   }
@@ -56,7 +56,7 @@ function getLoginSuccessMessage(success?: string) {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; success?: string; preview?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const currentUser = await getCurrentUser();
 
@@ -93,7 +93,7 @@ export default async function LoginPage({
           </p>
 
           {successMessage ? (
-            <DismissibleStatusBanner clearKeys={["success", "preview"]} text={successMessage} tone="success" />
+            <DismissibleStatusBanner clearKeys={["success"]} text={successMessage} tone="success" />
           ) : null}
           {errorMessage ? (
             <DismissibleStatusBanner clearKeys={["error"]} text={errorMessage} tone="error" />

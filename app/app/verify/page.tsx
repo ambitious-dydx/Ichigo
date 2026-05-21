@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DismissibleStatusBanner } from "../../../src/components/dismissible-status-banner";
-import { logoutAction, requestEmailVerificationAction } from "../../../src/server/actions";
+import {
+  logoutAction,
+  requestEmailVerificationAction,
+  verifyEmailAction,
+} from "../../../src/server/actions";
 import { requireCurrentUser } from "../../../src/server/auth";
+import { SubmitButton } from "../../../src/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
-function getNotice(success?: string, error?: string, hasPreview = false) {
+function getNotice(success?: string, error?: string, hasPreviewCode = false) {
   switch (success) {
-    case "verification-link-created":
+    case "verification-code-sent":
       return {
         tone: "success" as const,
-        text: hasPreview
-          ? "A fresh verification link is ready below for this environment."
-          : "A fresh verification email has been sent.",
+        text: hasPreviewCode
+          ? "A fresh verification code is ready below for this environment."
+          : "A fresh verification code has been sent to your email.",
       };
     default:
       break;
@@ -25,6 +30,11 @@ function getNotice(success?: string, error?: string, hasPreview = false) {
         tone: "error" as const,
         text: "Ichigo could not send the verification email with the current SMTP setup.",
       };
+    case "invalid-code":
+      return {
+        tone: "error" as const,
+        text: "That verification code is missing, expired, or incorrect.",
+      };
     default:
       return error ? { tone: "error" as const, text: "Ichigo still needs your email verified." } : null;
   }
@@ -33,7 +43,7 @@ function getNotice(success?: string, error?: string, hasPreview = false) {
 export default async function VerifyGatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; error?: string; preview?: string }>;
+  searchParams: Promise<{ success?: string; error?: string; code?: string }>;
 }) {
   const currentUser = await requireCurrentUser();
 
@@ -41,8 +51,8 @@ export default async function VerifyGatePage({
     redirect(currentUser.onboardingCompletedAt ? "/app" : "/app/onboarding");
   }
 
-  const { success, error, preview } = await searchParams;
-  const notice = getNotice(success, error, Boolean(preview));
+  const { success, error, code } = await searchParams;
+  const notice = getNotice(success, error, Boolean(code));
 
   return (
     <div className="workspace-grid verify-gate-layout">
@@ -60,7 +70,7 @@ export default async function VerifyGatePage({
 
         {notice ? (
           <DismissibleStatusBanner
-            clearKeys={["success", "error", "preview"]}
+            clearKeys={["success", "error", "code"]}
             text={notice.text}
             tone={notice.tone}
           />
@@ -75,21 +85,40 @@ export default async function VerifyGatePage({
           </div>
 
           <p className="section-text">
-            Check your inbox, open the verification link, then come back here. If the message did not
-            arrive, send another one.
+            Check your inbox, enter the verification code here, and continue. If the message did not
+            arrive, send another code.
           </p>
+
+          <form action={verifyEmailAction} className="inline-form-stack">
+            <input
+              autoComplete="one-time-code"
+              className="text-input"
+              defaultValue={code ?? ""}
+              inputMode="numeric"
+              maxLength={6}
+              name="code"
+              pattern="[0-9]{6}"
+              placeholder="6-digit verification code"
+              required
+              type="text"
+            />
+            <SubmitButton className="button button-primary" pendingLabel="Verifying...">
+              Verify email
+            </SubmitButton>
+          </form>
 
           <form action={requestEmailVerificationAction} className="form-actions">
             <input name="redirectTo" type="hidden" value="/app/verify" />
             <button className="button button-primary" type="submit">
-              Send another verification email
+              Send another verification code
             </button>
           </form>
 
-          {preview ? (
-            <Link className="button button-secondary" href={preview}>
-              Open verification link
-            </Link>
+          {code ? (
+            <div className="seed-credentials verification-code-preview">
+              <span>Local preview code</span>
+              <strong>{code}</strong>
+            </div>
           ) : null}
         </section>
       </section>

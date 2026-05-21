@@ -50,19 +50,19 @@ export async function POST(request: Request) {
     }
   }
 
-  let previewUrl: string | null = null;
+  let previewCode: string | null = null;
 
   try {
     const delivery = await requestEmailVerification(result.user.id);
-    previewUrl = delivery.previewUrl;
+    previewCode = delivery.previewCode;
   } catch {
-    previewUrl = null;
+    previewCode = null;
   }
 
   return NextResponse.json(
     {
       user: result.user,
-      previewUrl,
+      previewCode,
     },
     { status: 201 },
   );

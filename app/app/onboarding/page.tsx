@@ -16,6 +16,15 @@ function getErrorMessage(error?: string) {
   }
 }
 
+function getSuccessMessage(success?: string) {
+  switch (success) {
+    case "email-verified":
+      return "Your email is verified. Finish this last setup step to enter Ichigo.";
+    default:
+      return null;
+  }
+}
+
 const focusOptions = [
   {
     id: "founder",
@@ -42,7 +51,7 @@ const focusOptions = [
 export default async function OnboardingRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }) {
   const currentUser = await requireCurrentUser();
 
@@ -54,8 +63,9 @@ export default async function OnboardingRoute({
     redirect("/app");
   }
 
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
   const errorMessage = getErrorMessage(error);
+  const successMessage = getSuccessMessage(success);
 
   return (
     <div className="workspace-grid">
@@ -70,6 +80,10 @@ export default async function OnboardingRoute({
             </p>
           </div>
         </div>
+
+        {successMessage ? (
+          <DismissibleStatusBanner clearKeys={["success"]} text={successMessage} tone="success" />
+        ) : null}
 
         {errorMessage ? (
           <DismissibleStatusBanner clearKeys={["error"]} text={errorMessage} tone="error" />

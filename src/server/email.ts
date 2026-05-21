@@ -8,11 +8,13 @@ type SendTransactionalEmailInput = {
   text: string;
   html: string;
   previewUrl?: string;
+  previewCode?: string;
 };
 
 export type EmailDeliveryResult = {
   delivery: DeliveryMode;
   previewUrl: string | null;
+  previewCode: string | null;
 };
 
 type SmtpConfig = {
@@ -111,6 +113,7 @@ export async function sendTransactionalEmail(
     return {
       delivery: "local",
       previewUrl: input.previewUrl ?? null,
+      previewCode: input.previewCode ?? null,
     };
   }
 
@@ -127,6 +130,7 @@ export async function sendTransactionalEmail(
   return {
     delivery: "smtp",
     previewUrl: null,
+    previewCode: null,
   };
 }
 
@@ -148,10 +152,45 @@ function wrapEmailHtml(title: string, intro: string, ctaLabel: string, ctaUrl: s
   `;
 }
 
+function wrapVerificationCodeHtml(input: {
+  username: string;
+  verificationCode: string;
+  verificationPageUrl: string;
+}) {
+  return `
+    <div style="margin:0;padding:32px 20px;background:#f7f5f2;font-family:Arial,sans-serif;color:#221c24;">
+      <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e6ddd7;border-radius:20px;padding:32px;">
+        <p style="margin:0 0 16px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#f04d47;font-weight:700;">
+          Ichigo
+        </p>
+        <h1 style="margin:0 0 16px;font-size:30px;line-height:1.1;color:#221c24;">Verify your email.</h1>
+        <p style="margin:0 0 20px;font-size:16px;line-height:1.65;color:#5d5560;">
+          Hi ${input.username}, enter this verification code in Ichigo to confirm this address.
+        </p>
+        <div style="margin:0 0 20px;padding:18px 20px;border:1px solid #f0d7d0;border-radius:18px;background:#fff7f5;">
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#a75b56;font-weight:700;">
+            Verification code
+          </p>
+          <p style="margin:0;font-size:32px;letter-spacing:0.24em;font-weight:800;color:#221c24;">
+            ${input.verificationCode}
+          </p>
+        </div>
+        <a href="${input.verificationPageUrl}" style="display:inline-block;padding:14px 22px;border-radius:14px;background:#f04d47;color:#ffffff;text-decoration:none;font-weight:700;">
+          Open verification screen
+        </a>
+        <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#6d6670;">
+          If you did not request this, you can ignore this email.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export async function sendVerificationEmail(input: {
   to: string;
   username: string;
-  verificationUrl: string;
+  verificationCode: string;
+  verificationPageUrl: string;
 }) {
   return sendTransactionalEmail({
     to: input.to,
@@ -159,19 +198,16 @@ export async function sendVerificationEmail(input: {
     text: [
       `Hi ${input.username},`,
       "",
-      "Verify your Ichigo email address by opening this link:",
-      input.verificationUrl,
+      "Verify your Ichigo email address with this code:",
+      input.verificationCode,
+      "",
+      "Enter it on this screen:",
+      input.verificationPageUrl,
       "",
       "If you did not request this, you can ignore this email.",
     ].join("\n"),
-    html: wrapEmailHtml(
-      "Verify your email.",
-      `Hi ${input.username}, confirm this address so Ichigo can trust recovery and account ownership to reach you.`,
-      "Verify email",
-      input.verificationUrl,
-      "If you did not request this, you can ignore this email.",
-    ),
-    previewUrl: input.verificationUrl,
+    html: wrapVerificationCodeHtml(input),
+    previewCode: input.verificationCode,
   });
 }
 

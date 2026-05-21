@@ -18,10 +18,6 @@ function createIdentity(prefix: string) {
   };
 }
 
-function getTokenFromPreviewUrl(previewUrl: string | null) {
-  return previewUrl ? new URL(previewUrl).searchParams.get("token") : null;
-}
-
 async function registerIdentity(baseUrl: string, identity: ReturnType<typeof createIdentity>) {
   const registerResponse = await fetch(`${baseUrl}/api/auth/register`, {
     method: "POST",
@@ -35,7 +31,7 @@ async function registerIdentity(baseUrl: string, identity: ReturnType<typeof cre
   });
   const registerPayload = (await registerResponse.json()) as {
     user: { username: string; email: string };
-    previewUrl: string | null;
+    previewCode: string | null;
   };
 
   expect(registerResponse.status).toBe(201);
@@ -44,17 +40,17 @@ async function registerIdentity(baseUrl: string, identity: ReturnType<typeof cre
   return registerPayload;
 }
 
-async function verifyEmailFromPreview(baseUrl: string, previewUrl: string | null) {
-  const verificationToken = getTokenFromPreviewUrl(previewUrl);
-  expect(verificationToken).toBeTruthy();
+async function verifyEmailWithCode(baseUrl: string, sessionCookie: string, code: string | null) {
+  expect(code).toBeTruthy();
 
   const verificationResponse = await fetch(`${baseUrl}/api/auth/email-verification/verify`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
+      Cookie: sessionCookie,
     },
     body: JSON.stringify({
-      token: verificationToken,
+      code,
     }),
   });
 
@@ -327,7 +323,17 @@ describe("http smoke", () => {
     const identity = createIdentity("tester");
     const registerPayload = await registerIdentity(baseUrl, identity);
 
-    await verifyEmailFromPreview(baseUrl, registerPayload.previewUrl);
+    const verificationLoginResponse = await loginWithPassword(
+      baseUrl,
+      identity.email,
+      identity.password,
+    );
+    const verificationCookie = getSessionCookie(verificationLoginResponse);
+    const verificationLoginPayload = (await verificationLoginResponse.json()) as {
+      previewCode: string | null;
+    };
+
+    await verifyEmailWithCode(baseUrl, verificationCookie, verificationLoginPayload.previewCode);
 
     const loginResponse = await loginWithPassword(baseUrl, identity.email, identity.password);
     expect(loginResponse.status).toBe(200);
@@ -370,11 +376,11 @@ describe("http smoke", () => {
       },
     );
     const verificationRequestPayload = (await verificationRequestResponse.json()) as {
-      previewUrl: string | null;
+      previewCode: string | null;
     };
 
     expect(verificationRequestResponse.status).toBe(202);
-    await verifyEmailFromPreview(baseUrl, verificationRequestPayload.previewUrl);
+    await verifyEmailWithCode(baseUrl, sessionCookie ?? "", verificationRequestPayload.previewCode);
 
     const nextPassword = "New-test-pass-456!";
     const changePasswordResponse = await fetch(`${baseUrl}/api/auth/password`, {
@@ -417,7 +423,17 @@ describe("http smoke", () => {
   it("gates the product behind onboarding and unlocks it after completion", async () => {
     const identity = createIdentity("onboard");
     const registerPayload = await registerIdentity(baseUrl, identity);
-    await verifyEmailFromPreview(baseUrl, registerPayload.previewUrl);
+    const verificationLoginResponse = await loginWithPassword(
+      baseUrl,
+      identity.email,
+      identity.password,
+    );
+    const verificationCookie = getSessionCookie(verificationLoginResponse);
+    const verificationLoginPayload = (await verificationLoginResponse.json()) as {
+      previewCode: string | null;
+    };
+
+    await verifyEmailWithCode(baseUrl, verificationCookie, verificationLoginPayload.previewCode);
     const loginResponse = await loginWithPassword(baseUrl, identity.email, identity.password);
     expect(loginResponse.status).toBe(200);
     const sessionCookie = getSessionCookie(loginResponse);
@@ -491,7 +507,7 @@ describe("http smoke", () => {
     const blockedLoginPayload = (await blockedLoginResponse.json()) as {
       user: { email: string };
       requiresVerification: boolean;
-      previewUrl?: string | null;
+      previewCode?: string | null;
     };
 
     expect(blockedLoginResponse.status).toBe(200);
@@ -511,7 +527,17 @@ describe("http smoke", () => {
     expect(verifyGateResponse.status).toBe(307);
     expect(verifyGateResponse.headers.get("location")).toBe("/app/verify");
 
-    await verifyEmailFromPreview(baseUrl, registerPayload.previewUrl);
+    const verificationLoginResponse = await loginWithPassword(
+      baseUrl,
+      identity.email,
+      identity.password,
+    );
+    const verificationCookie = getSessionCookie(verificationLoginResponse);
+    const verificationLoginPayload = (await verificationLoginResponse.json()) as {
+      previewCode: string | null;
+    };
+
+    await verifyEmailWithCode(baseUrl, verificationCookie, verificationLoginPayload.previewCode);
 
     const loginResponse = await loginWithPassword(baseUrl, identity.email, identity.password);
     expect(loginResponse.status).toBe(200);
@@ -548,11 +574,11 @@ describe("http smoke", () => {
       },
     );
     const verificationRequestPayload = (await verificationRequestResponse.json()) as {
-      previewUrl: string | null;
+      previewCode: string | null;
     };
 
     expect(verificationRequestResponse.status).toBe(202);
-    await verifyEmailFromPreview(baseUrl, verificationRequestPayload.previewUrl);
+    await verifyEmailWithCode(baseUrl, sessionCookie ?? "", verificationRequestPayload.previewCode);
 
     const resetRequestResponse = await fetch(`${baseUrl}/api/auth/password-reset/request`, {
       method: "POST",
@@ -605,7 +631,17 @@ describe("http smoke", () => {
   it("tracks multiple sessions and can revoke another session", async () => {
     const identity = createIdentity("session");
     const registerPayload = await registerIdentity(baseUrl, identity);
-    await verifyEmailFromPreview(baseUrl, registerPayload.previewUrl);
+    const verificationLoginResponse = await loginWithPassword(
+      baseUrl,
+      identity.email,
+      identity.password,
+    );
+    const verificationCookie = getSessionCookie(verificationLoginResponse);
+    const verificationLoginPayload = (await verificationLoginResponse.json()) as {
+      previewCode: string | null;
+    };
+
+    await verifyEmailWithCode(baseUrl, verificationCookie, verificationLoginPayload.previewCode);
 
     const firstLoginResponse = await loginWithPassword(baseUrl, identity.email, identity.password);
     expect(firstLoginResponse.status).toBe(200);
@@ -675,7 +711,11 @@ describe("http smoke", () => {
     };
 
     expect(sessionsAfterRevokeResponse.status).toBe(200);
-    expect(sessionsAfterRevokePayload.sessions).toHaveLength(1);
-    expect(sessionsAfterRevokePayload.sessions[0]?.isCurrent).toBe(true);
+    expect(
+      sessionsAfterRevokePayload.sessions.some((session) => session.id === revokedSession?.id),
+    ).toBe(false);
+    expect(
+      sessionsAfterRevokePayload.sessions.some((session) => session.isCurrent),
+    ).toBe(true);
   });
 });

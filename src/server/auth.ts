@@ -8,11 +8,18 @@ import {
   sendVerificationEmail,
 } from "./email";
 import { isStrongPassword } from "../password-policy";
-import { createSessionToken, hashPassword, hashToken, verifyPassword } from "./security";
+import {
+  createNumericCode,
+  createSessionToken,
+  hashPassword,
+  hashToken,
+  verifyPassword,
+} from "./security";
 import type { FeedbackFocus, SessionUser } from "./types";
 import {
   completeUserOnboarding,
   consumeAccountToken,
+  consumeAccountTokenForUser,
   createAccountToken,
   createProductEvent,
   createSessionRecord,
@@ -403,16 +410,18 @@ export async function requestEmailVerification(userId: string) {
     throw new Error("User not found");
   }
 
-  const token = createAccountToken({
+  const verificationCode = createNumericCode(6);
+  createAccountToken({
     userId,
     type: "email_verification",
     expiresAt: hoursFromNow(24).toISOString(),
+    token: verificationCode,
   });
-  const verificationUrl = buildAppUrl(`/verify-email?token=${encodeURIComponent(token)}`);
   const delivery = await sendVerificationEmail({
     to: user.email,
     username: user.username,
-    verificationUrl,
+    verificationCode,
+    verificationPageUrl: buildAppUrl("/app/verify"),
   });
 
   createProductEvent({
@@ -424,6 +433,26 @@ export async function requestEmailVerification(userId: string) {
   });
 
   return delivery;
+}
+
+export async function verifyEmailCode(userId: string, code: string) {
+  const consumed = consumeAccountTokenForUser({
+    token: code,
+    type: "email_verification",
+    userId,
+  });
+
+  if (!consumed) {
+    return { error: "invalid-code" as const };
+  }
+
+  const user = markUserEmailVerified(consumed.userId, nowIso());
+  createProductEvent({
+    userId: consumed.userId,
+    eventName: "auth.email_verified",
+  });
+
+  return { user };
 }
 
 export async function verifyEmailToken(token: string) {

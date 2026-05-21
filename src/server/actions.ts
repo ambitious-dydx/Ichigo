@@ -22,7 +22,7 @@ import {
   signOutOtherSessions,
   signOutUser,
   updateAccountDetails,
-  verifyEmailToken,
+  verifyEmailCode,
 } from "./auth";
 import {
   clearUserRelationship,
@@ -133,10 +133,10 @@ export async function loginAction(formData: FormData) {
       redirect("/app/verify?error=delivery-failed");
     }
 
-    const previewParam = delivery.previewUrl
-      ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+    const previewParam = delivery.previewCode
+      ? `&code=${encodeURIComponent(delivery.previewCode)}`
       : "";
-    redirect(`/app/verify?success=verification-link-created${previewParam}`);
+    redirect(`/app/verify?success=verification-code-sent${previewParam}`);
   }
 
   redirect(result.user.onboardingCompletedAt ? "/app" : "/app/onboarding");
@@ -170,10 +170,7 @@ export async function registerAction(formData: FormData) {
     redirect("/login?error=verification-email-failed");
   }
 
-  const previewParam = delivery.previewUrl
-    ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
-    : "";
-  redirect(`/login?success=verification-email-sent${previewParam}`);
+  redirect("/login?success=verification-code-sent");
 }
 
 export async function logoutAction() {
@@ -524,8 +521,8 @@ export async function updateAccountAction(formData: FormData) {
       redirect("/app/settings/account?success=account-saved-verification-failed");
     }
 
-    const previewParam = delivery.previewUrl
-      ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+    const previewParam = delivery.previewCode
+      ? `&code=${encodeURIComponent(delivery.previewCode)}`
       : "";
     redirect(`/app/settings/account?success=account-saved${previewParam}`);
   }
@@ -622,28 +619,32 @@ export async function requestEmailVerificationAction(formData: FormData) {
     redirect(`${redirectTo}?error=delivery-failed`);
   }
 
-  const previewParam = delivery.previewUrl
-    ? `&preview=${encodeURIComponent(delivery.previewUrl)}`
+  const previewParam = delivery.previewCode
+    ? `&code=${encodeURIComponent(delivery.previewCode)}`
     : "";
-  redirect(`${redirectTo}?success=verification-link-created${previewParam}`);
+  redirect(`${redirectTo}?success=verification-code-sent${previewParam}`);
 }
 
 export async function verifyEmailAction(formData: FormData) {
-  const token = asString(formData.get("token"));
+  const currentUser = await requireCurrentUser();
+  const code = asString(formData.get("code"));
 
-  if (!token) {
-    redirect("/app/settings/account?error=invalid-token");
+  if (!code) {
+    redirect("/app/verify?error=invalid-code");
   }
 
-  const result = await verifyEmailToken(token);
+  const result = await verifyEmailCode(currentUser.id, code);
 
   if ("error" in result) {
-    redirect("/app/settings/account?error=invalid-token");
+    redirect("/app/verify?error=invalid-code");
   }
 
+  revalidatePath("/app");
+  revalidatePath("/app/onboarding");
+  revalidatePath("/app/verify");
   revalidatePath("/app/settings");
   revalidatePath("/app/settings/account");
-  redirect("/app/settings/account?success=email-verified");
+  redirect(currentUser.onboardingCompletedAt ? "/app?success=email-verified" : "/app/onboarding?success=email-verified");
 }
 
 export async function requestPasswordResetAction(formData: FormData) {

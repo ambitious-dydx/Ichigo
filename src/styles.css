@@ -2540,6 +2540,16 @@ select.text-input:focus {
   background: var(--surface-muted);
 }
 
+.verification-code-preview {
+  gap: 0.35rem;
+}
+
+.verification-code-preview strong {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  letter-spacing: 0.22em;
+}
+
 .form-error {
   color: var(--error-text);
   font-weight: 700;

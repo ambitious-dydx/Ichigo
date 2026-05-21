@@ -15,7 +15,7 @@ export async function POST() {
     return NextResponse.json(
       {
         success: true,
-        previewUrl: delivery.previewUrl,
+        previewCode: delivery.previewCode,
       },
       { status: 202 },
     );

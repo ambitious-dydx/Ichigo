@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 
 const SCRYPT_KEY_LENGTH = 64;
 
@@ -28,6 +28,11 @@ export function verifyPassword(password: string, storedHash: string) {
 
 export function createSessionToken() {
   return randomBytes(32).toString("hex");
+}
+
+export function createNumericCode(length = 6) {
+  const max = 10 ** length;
+  return randomInt(0, max).toString().padStart(length, "0");
 }
 
 export function hashToken(token: string) {

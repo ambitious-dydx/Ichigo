@@ -55,6 +55,11 @@ export function getWorkspaceNotice(success?: string, error?: string): WorkspaceN
         tone: "success",
         text: "Everything here is marked as seen.",
       };
+    case "email-verified":
+      return {
+        tone: "success",
+        text: "Your email is verified now.",
+      };
     default:
       break;
   }

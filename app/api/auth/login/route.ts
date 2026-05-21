@@ -20,20 +20,20 @@ export async function POST(request: Request) {
     return jsonError("Invalid credentials", 401);
   }
 
-  let previewUrl: string | null = null;
+  let previewCode: string | null = null;
 
   if (!result.user.emailVerifiedAt) {
     try {
       const delivery = await requestEmailVerification(result.user.id);
-      previewUrl = delivery.previewUrl;
+      previewCode = delivery.previewCode;
     } catch {
-      previewUrl = null;
+      previewCode = null;
     }
   }
 
   return NextResponse.json({
     user: result.user,
     requiresVerification: !result.user.emailVerifiedAt,
-    previewUrl,
+    previewCode,
   });
 }

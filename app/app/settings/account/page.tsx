@@ -7,7 +7,7 @@ import { getSecurityView, listBlockedUsers } from "../../../../src/server/reposi
 
 export const dynamic = "force-dynamic";
 
-function getNotice(success?: string, error?: string, hasPreview = false) {
+function getNotice(success?: string, error?: string, hasPreviewCode = false) {
   switch (success) {
     case "account-saved":
       return { tone: "success" as const, text: "Your account details were updated." };
@@ -16,12 +16,12 @@ function getNotice(success?: string, error?: string, hasPreview = false) {
         tone: "success" as const,
         text: "Your account details were updated, but Ichigo could not send the verification email yet.",
       };
-    case "verification-link-created":
+    case "verification-code-sent":
       return {
         tone: "success" as const,
-        text: hasPreview
-          ? "A verification link is ready below for this local environment."
-          : "A verification email has been sent.",
+        text: hasPreviewCode
+          ? "A verification code is ready below for this local environment."
+          : "A verification code has been sent.",
       };
     case "email-verified":
       return { tone: "success" as const, text: "Your email address is now verified." };
@@ -43,10 +43,10 @@ function getNotice(success?: string, error?: string, hasPreview = false) {
       return { tone: "error" as const, text: "That email is already in use." };
     case "username-exists":
       return { tone: "error" as const, text: "That username is already taken." };
-    case "invalid-token":
+    case "invalid-code":
       return {
         tone: "error" as const,
-        text: "That verification link is missing, expired, or has already been used.",
+        text: "That verification code is missing, expired, or incorrect.",
       };
     case "delivery-failed":
       return {
@@ -61,10 +61,10 @@ function getNotice(success?: string, error?: string, hasPreview = false) {
 export default async function AccountSettingsRoute({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; error?: string; preview?: string }>;
+  searchParams: Promise<{ success?: string; error?: string; code?: string }>;
 }) {
   const currentUser = await requireCurrentUser();
-  const { success, error, preview } = await searchParams;
+  const { success, error, code } = await searchParams;
   const security = getSecurityView({
     userId: currentUser.id,
     currentSessionId: await getCurrentSessionId(),
@@ -75,9 +75,9 @@ export default async function AccountSettingsRoute({
     <AccountSettingsPage
       blockedUsers={blockedUsers}
       currentUser={currentUser}
-      notice={getNotice(success, error, Boolean(preview))}
+      notice={getNotice(success, error, Boolean(code))}
       security={security}
-      verificationPreviewUrl={preview ?? null}
+      verificationPreviewCode={code ?? null}
     />
   );
 }

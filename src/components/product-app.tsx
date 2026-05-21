@@ -192,7 +192,7 @@ function StatusBanner({ notice }: { notice: PageNotice }) {
   }
 
   return (
-    <DismissibleStatusBanner clearKeys={["success", "error", "preview"]} text={notice.text} tone={notice.tone} />
+    <DismissibleStatusBanner clearKeys={["success", "error", "preview", "code"]} text={notice.text} tone={notice.tone} />
   );
 }
 
@@ -873,13 +873,13 @@ export function AccountSettingsPage({
   currentUser,
   notice,
   security,
-  verificationPreviewUrl,
+  verificationPreviewCode,
 }: {
   blockedUsers: BlockedUserView[];
   currentUser: SessionUser;
   notice: PageNotice;
   security: SecurityView;
-  verificationPreviewUrl: string | null;
+  verificationPreviewCode: string | null;
 }) {
   return (
     <div className="workspace-grid">
@@ -909,9 +909,9 @@ export function AccountSettingsPage({
               <p>
                 {currentUser.emailVerifiedAt
                   ? "This account already has a verified email attached to it."
-                  : verificationPreviewUrl
-                    ? "SMTP is not active for this environment, so Ichigo is exposing a local verification link instead."
-                    : "Ichigo will send a verification email to this address."}
+                  : verificationPreviewCode
+                    ? "SMTP is not active for this environment, so Ichigo is exposing a local verification code instead."
+                    : "Ichigo will send a verification code to this address."}
               </p>
               <div className="settings-stat-list">
                 <div className="settings-stat-row">
@@ -937,14 +937,21 @@ export function AccountSettingsPage({
               {!currentUser.emailVerifiedAt ? (
                 <form action={requestEmailVerificationAction}>
                   <SubmitButton className="button button-primary" pendingLabel="Generating...">
-                    Generate verification link
+                    Send verification code
                   </SubmitButton>
                 </form>
               ) : null}
 
-              {verificationPreviewUrl ? (
-                <Link className="button button-secondary" href={verificationPreviewUrl}>
-                  Open verification link
+              {verificationPreviewCode ? (
+                <div className="seed-credentials verification-code-preview">
+                  <span>Local preview code</span>
+                  <strong>{verificationPreviewCode}</strong>
+                </div>
+              ) : null}
+
+              {!currentUser.emailVerifiedAt ? (
+                <Link className="button button-secondary" href="/app/verify">
+                  Open verification screen
                 </Link>
               ) : null}
             </div>

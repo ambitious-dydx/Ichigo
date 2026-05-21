@@ -609,9 +609,10 @@ export function createAccountToken(input: {
   userId: string;
   type: AccountTokenType;
   expiresAt: string;
+  token?: string;
 }) {
   const db = getDb();
-  const token = createSessionToken();
+  const token = input.token ?? createSessionToken();
   const tokenHashValue = hashToken(token);
 
   db.prepare(`
@@ -642,6 +643,39 @@ export function consumeAccountToken(token: string, type: AccountTokenType) {
       LIMIT 1
     `)
     .get(hashToken(token), type, nowIso()) as Record<string, unknown> | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  db.prepare("UPDATE account_tokens SET used_at = ? WHERE id = ?").run(nowIso(), String(row.id));
+
+  return {
+    userId: String(row.user_id),
+    expiresAt: normalizeDate(String(row.expires_at)),
+  };
+}
+
+export function consumeAccountTokenForUser(input: {
+  token: string;
+  type: AccountTokenType;
+  userId: string;
+}) {
+  const db = getDb();
+  const row = db
+    .prepare(`
+      SELECT *
+      FROM account_tokens
+      WHERE token_hash = ?
+        AND type = ?
+        AND user_id = ?
+        AND used_at IS NULL
+        AND expires_at > ?
+      LIMIT 1
+    `)
+    .get(hashToken(input.token), input.type, input.userId, nowIso()) as
+    | Record<string, unknown>
+    | undefined;
 
   if (!row) {
     return null;
