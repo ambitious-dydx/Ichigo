@@ -11,6 +11,14 @@ export const metadata: Metadata = {
   },
   description:
     "Ichigo is an intentional feedback platform where every post sets the kind of response it wants.",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/apple-icon.png", type: "image/png", sizes: "180x180" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/icon.png"],
+  },
 };
 
 const themeScript = `
