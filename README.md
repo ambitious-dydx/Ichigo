@@ -151,10 +151,11 @@ SMTP_SECURE=true
 SMTP_FROM=Ichigo <noreply@your-domain.com>
 ```
 
-Verification emails link to:
+Verification emails send a `6-digit code`.
+Users enter that code at:
 
 ```text
-/verify-email?token=...
+/app/verify
 ```
 
 Password reset emails link to:
@@ -162,6 +163,12 @@ Password reset emails link to:
 ```text
 /reset-password?token=...
 ```
+
+Verification code behavior:
+
+- code expires after `30 minutes`
+- only the newest active code remains valid after a resend
+- new email registrations are routed straight to the verification screen
 
 ## Optional Gemini Fit Checking
 

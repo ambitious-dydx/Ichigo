@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ichigo Closed Beta Readiness Report</title>
+    <style>
+      body {
+        font-family: "Aptos", "Helvetica Neue", Arial, sans-serif;
+        font-size: 12pt;
+        line-height: 1.45;
+        color: #1f1f1f;
+        margin: 40px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: "Georgia", "Times New Roman", serif;
+        color: #141414;
+        margin-bottom: 0.2em;
+      }
+
+      h1 {
+        font-size: 24pt;
+        margin-top: 0;
+      }
+
+      h2 {
+        font-size: 16pt;
+        margin-top: 1.4em;
+        border-bottom: 1px solid #dddddd;
+        padding-bottom: 0.2em;
+      }
+
+      h3 {
+        font-size: 13pt;
+        margin-top: 1.1em;
+      }
+
+      p,
+      li {
+        margin-top: 0.35em;
+        margin-bottom: 0.35em;
+      }
+
+      ul,
+      ol {
+        margin-top: 0.4em;
+        margin-bottom: 0.8em;
+      }
+
+      .meta {
+        color: #666666;
+        margin-bottom: 1.2em;
+      }
+
+      .callout {
+        border: 1px solid #d9d9d9;
+        background: #fafafa;
+        padding: 12px 14px;
+        margin: 1em 0;
+      }
+
+      .verdict {
+        border-left: 4px solid #d94b55;
+        padding-left: 12px;
+      }
+
+      .tight li {
+        margin-bottom: 0.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ichigo Closed Beta Readiness Report</h1>
+    <p class="meta">Version 2 · May 30, 2026</p>
+
+    <h2>1. Executive Summary</h2>
+    <div class="callout verdict">
+      <p><strong>Decision:</strong> Ichigo is ready for a controlled closed beta.</p>
+      <p><strong>Decision not to take yet:</strong> Ichigo is not ready for a broad public launch.</p>
+    </div>
+    <p>
+      Ichigo has moved from concept into a working full-stack product. The core thesis is now live in
+      the application itself: a post is not just content, it is content plus context. Users can choose
+      the kind of reply they want, responders can see that ask, and the product now tries to enforce the
+      social contract through fit checking, rewrite guidance, cooldowns, moderation, and relationship
+      controls.
+    </p>
+    <p>
+      The product is strong enough to test with real target users in a limited environment. It is not
+      yet strong enough for open distribution, broad abuse exposure, or production-scale operational
+      risk.
+    </p>
+
+    <h2>2. Current Product Stage</h2>
+    <p><strong>Best label today:</strong> late alpha / closed beta candidate.</p>
+    <p><strong>Not yet:</strong> public MVP, general social network, or market-proven feedback platform.</p>
+    <p>
+      This stage means the product can now answer behavioral questions with real users, but still needs
+      controlled conditions and close operator attention.
+    </p>
+
+    <h2>3. What Is Already Real</h2>
+    <ul class="tight">
+      <li>Full-stack <code>Next.js</code> application with real backend routes and persistent storage.</li>
+      <li>Email/password auth and Google sign-in.</li>
+      <li>SMTP-backed email delivery.</li>
+      <li>Verification-code flow with 6-digit codes, 30-minute expiry, and invalidation on resend.</li>
+      <li>Password reset, recovery, session management, and session revocation.</li>
+      <li>Onboarding before full app access.</li>
+      <li>Feed, compose, thread, rooms, profile, notifications, settings, and moderation routes.</li>
+      <li>Visible response modes and ask-preserving thread views.</li>
+      <li>Heuristic fit checking, rewrite guidance, cooldown consequences, and optional Gemini second pass.</li>
+      <li>Block, mute, unmute, unblock, report, and comment deletion flows.</li>
+      <li>Automated tests covering security, repository logic, mode alignment, and HTTP flows.</li>
+    </ul>
+
+    <h2>4. Closed Beta Positioning</h2>
+    <p>Ichigo should currently be positioned as:</p>
+    <ul class="tight">
+      <li>a context-first feedback product</li>
+      <li>for founders, builders, and a narrow slice of creators</li>
+      <li>best suited for work, decisions, drafts, launches, dilemmas, and sensitive feedback moments</li>
+    </ul>
+    <p>Ichigo should not currently be positioned as:</p>
+    <ul class="tight">
+      <li>a general-purpose social network</li>
+      <li>a broad Twitter/Reddit/LinkedIn substitute</li>
+      <li>a product for every kind of posting and every kind of audience</li>
+    </ul>
+
+    <h2>5. Why Closed Beta Is The Right Next Step</h2>
+    <p>
+      The product now has a usable core loop, but the main question is still behavioral: do explicit
+      response modes actually produce better replies and stronger return behavior for the target wedge?
+    </p>
+    <p>A closed beta is the right environment to answer that because it lets the team:</p>
+    <ul class="tight">
+      <li>observe whether the idea is understood quickly</li>
+      <li>watch whether users post without much friction</li>
+      <li>evaluate whether replies feel meaningfully better</li>
+      <li>review moderation patterns manually</li>
+      <li>fix rough edges without public-launch pressure</li>
+    </ul>
+
+    <h2>6. What Is Good Enough For Closed Beta</h2>
+    <h3>6.1 Core Loop</h3>
+    <p>
+      Users can sign up, verify, onboard, post, reply, and experience the basic Ichigo promise: choose
+      the response context first, then receive replies shaped by that ask.
+    </p>
+
+    <h3>6.2 Authentication</h3>
+    <p>
+      The authentication stack is good enough for controlled beta. It includes verification, recovery,
+      stronger password rules, and real email delivery.
+    </p>
+
+    <h3>6.3 Fit Checking</h3>
+    <p>
+      Fit checking is good enough to test, but should still be treated as experimental. The product now
+      has enough structure to learn whether the feature helps or frustrates users.
+    </p>
+
+    <h3>6.4 Trust And Moderation</h3>
+    <p>
+      The current trust layer is sufficient for a small, selected cohort. It is not yet sufficient for
+      the open internet.
+    </p>
+
+    <h3>6.5 UX</h3>
+    <p>
+      The app is now a multi-page product with materially improved navigation, theming, validation,
+      feedback states, and responsive behavior. It is good enough for careful beta users, though not yet
+      fully polished.
+    </p>
+
+    <h2>7. Known Weaknesses To Accept During Beta</h2>
+    <ul class="tight">
+      <li>Fit checking is still partly heuristic and will produce false positives and false negatives.</li>
+      <li>Some flows still need UX tightening, especially under unusual or slower usage patterns.</li>
+      <li>Moderation still depends heavily on manual review.</li>
+      <li>Infrastructure is still local-first rather than production-hardened.</li>
+      <li>Cross-device QA has improved, but is not yet fully systematic.</li>
+    </ul>
+
+    <h2>8. Public MVP Blockers</h2>
+    <p>Ichigo should not move to a public launch until these blockers are addressed:</p>
+    <ul class="tight">
+      <li>Stronger abuse-resistant moderation and admin tooling.</li>
+      <li>Anti-spam and anti-bot protections suitable for open distribution.</li>
+      <li>Managed production infrastructure, especially database, logging, monitoring, and backups.</li>
+      <li>Clear privacy, data, and age-policy decisions.</li>
+      <li>Better measurement of activation, reply quality, and retention from real users.</li>
+      <li>More evidence that the wedge is correct and the product creates repeat usage.</li>
+    </ul>
+
+    <h2>9. What The Closed Beta Must Prove</h2>
+    <ol>
+      <li>Users understand the product without long explanation.</li>
+      <li>Users create posts in the target wedge.</li>
+      <li>Replies improve because the ask is visible.</li>
+      <li>Posters feel the difference and come back.</li>
+      <li>The target wedge is correct.</li>
+      <li>Fit checking helps more than it annoys.</li>
+    </ol>
+
+    <h2>10. Core Metrics To Watch</h2>
+    <ul class="tight">
+      <li>Signup completion rate</li>
+      <li>Email verification completion rate</li>
+      <li>Onboarding completion rate</li>
+      <li>First post creation rate</li>
+      <li>Replies per post</li>
+      <li>Time to first reply</li>
+      <li>Average fit score</li>
+      <li>Rewrite acceptance rate</li>
+      <li>Return rate after receiving a reply</li>
+      <li>Day 1 and Day 7 retention</li>
+      <li>Report rate, mute/block rate, and low-fit reply rate</li>
+    </ul>
+
+    <h2>11. Recommended First Cohort</h2>
+    <p>The first users should be selected, not random.</p>
+    <ul class="tight">
+      <li>Founders and indie hackers</li>
+      <li>Builders and technical creators</li>
+      <li>Designers and product-minded students</li>
+      <li>People who already ask for honest feedback online</li>
+    </ul>
+    <p>
+      The first cohort should be small enough to observe directly and large enough to generate genuine
+      feedback loops. A first cohort of 15 to 20 users, followed by an expansion toward 50, is the
+      right shape.
+    </p>
+
+    <h2>12. 30-Day Closed Beta Plan</h2>
+    <h3>Week 1</h3>
+    <p>Prepare invite list, beta rules, onboarding copy, moderation process, and tracking setup.</p>
+    <h3>Week 2</h3>
+    <p>Invite the first 15 to 20 users and focus on onboarding, first posts, first replies, and confusion points.</p>
+    <h3>Week 3</h3>
+    <p>Expand toward 50 users if stable, then evaluate rooms, moderation patterns, and mode usage.</p>
+    <h3>Week 4</h3>
+    <p>Review the evidence and decide whether to continue, expand, narrow, or rework.</p>
+
+    <h2>13. Final Recommendation</h2>
+    <div class="callout">
+      <p><strong>Recommendation:</strong> proceed to a controlled closed beta.</p>
+      <p>
+        Treat the beta as a product-learning phase, not a launch event. The goal is to validate whether
+        explicit response context creates better replies and better return behavior for founders,
+        builders, and selected creators.
+      </p>
+      <p>
+        Do not move to public MVP until the product proves activation, reply quality, retention, and
+        basic operational resilience.
+      </p>
+    </div>
+  </body>
+</html>
