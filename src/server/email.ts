@@ -36,21 +36,31 @@ function isSmtpDisabled() {
   return getEnv("ICHIGO_DISABLE_SMTP") === "true" || getEnv("VITEST") === "true";
 }
 
+function isGmailHost(host: string) {
+  const normalized = host.trim().toLowerCase();
+  return normalized === "smtp.gmail.com" || normalized === "smtp-relay.gmail.com";
+}
+
 function getSmtpConfig(): SmtpConfig | null {
   if (isSmtpDisabled()) {
     return null;
   }
 
   const user = getEnv("SMTP_USER");
-  const pass = getEnv("SMTP_PASS");
+  const rawPass = getEnv("SMTP_PASS");
 
-  if (!user || !pass) {
+  if (!user || !rawPass) {
     return null;
   }
 
   const host = getEnv("SMTP_HOST") || "smtp.gmail.com";
   const portRaw = getEnv("SMTP_PORT") || "465";
-  const from = getEnv("SMTP_FROM") || `Ichigo <${user}>`;
+  const pass = isGmailHost(host) ? rawPass.replace(/\s+/g, "") : rawPass;
+  const rawFrom = getEnv("SMTP_FROM");
+  const from =
+    !rawFrom || (isGmailHost(host) && rawFrom.includes("your-email@gmail.com"))
+      ? `Ichigo <${user}>`
+      : rawFrom;
 
   const port = Number(portRaw);
 
