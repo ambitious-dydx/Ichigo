@@ -7,8 +7,8 @@ This document records the gap between the current Ichigo build and a real public
 It is not a wishlist.
 It is the practical product and execution read on the codebase as it exists today.
 
-The PDF in the repo is still the original concept document.
-This markdown file is the more accurate execution-state document for the current app.
+The project PDF now captures the current product thesis and implementation direction.
+This markdown file remains the sharper execution-state gap document for the current app.
 
 ## Current Product State
 
@@ -86,15 +86,15 @@ Why it is not yet a real public MVP:
 
 ### What Is Still Missing
 
-- the README and top-level docs still need sharper beta positioning
-- some product surfaces still read broader than the intended early audience
-- the product still leaves too much conceptual room for “everyone”
+- top-level docs now carry the beta wedge more clearly
+- some product surfaces may still drift broader than the intended early audience
+- the product can still drift toward "everyone" if new features are not judged against the wedge
 
 ### What Needs To Happen
 
 - treat founders and builders as the primary wedge
 - keep creators adjacent, not equal priority
-- remove broad social framing from product and docs
+- keep broad social framing as long-term expansion only, not current positioning
 
 ## 2. The First-Time User Loop Still Needs More Force
 

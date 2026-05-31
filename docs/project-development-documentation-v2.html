@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ichigo Project Development Documentation</title>
+    <style>
+      body {
+        font-family: "Aptos", "Helvetica Neue", Arial, sans-serif;
+        font-size: 12pt;
+        line-height: 1.48;
+        color: #1f1f1f;
+        margin: 40px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: "Georgia", "Times New Roman", serif;
+        color: #141414;
+        margin-bottom: 0.2em;
+      }
+
+      h1 {
+        font-size: 24pt;
+        margin-top: 0;
+      }
+
+      h2 {
+        font-size: 16pt;
+        margin-top: 1.35em;
+        border-bottom: 1px solid #dddddd;
+        padding-bottom: 0.2em;
+      }
+
+      h3 {
+        font-size: 13pt;
+        margin-top: 1em;
+      }
+
+      p,
+      li {
+        margin-top: 0.35em;
+        margin-bottom: 0.35em;
+      }
+
+      ul,
+      ol {
+        margin-top: 0.4em;
+        margin-bottom: 0.8em;
+      }
+
+      .meta {
+        color: #666666;
+        margin-bottom: 1.2em;
+      }
+
+      .callout {
+        border: 1px solid #d9d9d9;
+        background: #fafafa;
+        padding: 12px 14px;
+        margin: 1em 0;
+      }
+
+      .verdict {
+        border-left: 4px solid #d94b55;
+        padding-left: 12px;
+      }
+
+      .tight li {
+        margin-bottom: 0.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Ichigo Project Development Documentation</h1>
+    <p class="meta">Version 2.1 · May 31, 2026</p>
+
+    <h2>1. Executive Summary</h2>
+    <p>
+      Ichigo is a context-first feedback product. It lets a user share a post and make the response
+      context explicit before other people reply. The central thesis is:
+    </p>
+    <div class="callout verdict">
+      <p><strong>A post is not just content. It is content plus context.</strong></p>
+    </div>
+    <p>
+      The current product should be understood as a late-alpha / closed-beta candidate for founders,
+      builders, and a narrow slice of creators. It is not currently positioned as a broad social network
+      or a public Twitter, Reddit, or LinkedIn substitute.
+    </p>
+    <p>
+      The long-term vision remains broader: a context-first social graph where people are rewarded for
+      meeting the response context another person explicitly chose. The near-term strategy is narrower:
+      prove that explicit response context creates better replies and stronger return behavior inside a
+      selected closed beta.
+    </p>
+
+    <h2>2. Product Thesis</h2>
+    <p>
+      Conventional social media makes people guess the context behind a post. A person may want comfort,
+      advice, encouragement, direct critique, or quiet listening, but the platform usually treats all
+      replies as the same kind of interaction.
+    </p>
+    <p>
+      Ichigo makes that context visible. Every post carries a response mode that tells responders how the
+      poster wants to be met.
+    </p>
+    <p><strong>Ichigo asks:</strong> What do you want to say, and how do you want people to meet you?</p>
+
+    <h2>3. Current Positioning</h2>
+    <p>For the current closed beta, Ichigo is for:</p>
+    <ul class="tight">
+      <li>founders making product, hiring, launch, or strategy decisions</li>
+      <li>builders sharing progress, doubts, technical work, and project choices</li>
+      <li>selected creators who need structured feedback on public work, drafts, or direction</li>
+    </ul>
+    <p>Ichigo is not currently for:</p>
+    <ul class="tight">
+      <li>general social posting</li>
+      <li>viral entertainment</li>
+      <li>unbounded anonymous confession use</li>
+      <li>mass public debate</li>
+    </ul>
+
+    <h2>4. Brand Promise</h2>
+    <p>
+      Ichigo helps people say what they need and receive what helps. The strongest brand line remains:
+    </p>
+    <div class="callout">
+      <p><strong>Choose how people meet you.</strong></p>
+    </div>
+    <p>
+      This should guide the landing page, onboarding, closed-beta flyers, product copy, and invite
+      messaging.
+    </p>
+
+    <h2>5. Response Modes</h2>
+    <p>The current product supports these core modes:</p>
+    <ul class="tight">
+      <li><strong>Hype Me:</strong> encouragement, celebration, and momentum.</li>
+      <li><strong>Comfort Me:</strong> warmth, reassurance, and emotional steadiness.</li>
+      <li><strong>Advise Me:</strong> clear suggestions, options, and next steps.</li>
+      <li><strong>Soft Truth:</strong> honesty delivered with care.</li>
+      <li><strong>Challenge Me:</strong> pressure, accountability, and sharper questions.</li>
+      <li><strong>Just Listen:</strong> acknowledgement without trying to fix the post.</li>
+    </ul>
+    <p>
+      These modes are not decorative labels. They are the interaction contract for the post, and replies
+      are evaluated against that contract.
+    </p>
+
+    <h2>6. Current Application State</h2>
+    <p>The current application includes:</p>
+    <ul class="tight">
+      <li>Next.js full-stack application with App Router routes and backend route handlers.</li>
+      <li>Email/password auth and Google sign-in.</li>
+      <li>SMTP-backed transactional email.</li>
+      <li>Email verification through 6-digit codes.</li>
+      <li>30-minute verification code expiry.</li>
+      <li>Invalidation of older verification codes when a new code is sent.</li>
+      <li>Password reset, stronger password policy, session management, and session revocation.</li>
+      <li>Onboarding before full app access.</li>
+      <li>Feed, compose, thread, rooms, profile, activity, settings, and moderation routes.</li>
+      <li>Block, mute, unmute, unblock, report, and comment deletion flows.</li>
+      <li>Dismissible flash messages for important user actions.</li>
+      <li>Responsive navigation and light/dark theme support.</li>
+    </ul>
+
+    <h2>7. First-Use Flow</h2>
+    <p>The intended first-use flow is:</p>
+    <ol>
+      <li>User creates an account.</li>
+      <li>Ichigo sends a 6-digit verification code.</li>
+      <li>User is sent directly to the verification-code screen.</li>
+      <li>User verifies email.</li>
+      <li>User completes onboarding.</li>
+      <li>User creates or replies to a mode-shaped post.</li>
+    </ol>
+    <p>
+      Users who are signed in but unverified should not be able to use core product surfaces until their
+      email is verified. Users who are verified but not onboarded should be routed through onboarding
+      before normal app access.
+    </p>
+
+    <h2>8. Reply Fit Checking</h2>
+    <p>
+      Ichigo includes a reply-fit layer that checks whether a response respects the ask attached to the
+      post. The current system uses:
+    </p>
+    <ul class="tight">
+      <li>heuristic mode-alignment scoring</li>
+      <li>ask-aware checks for relevance and tone</li>
+      <li>rewrite guidance for low-fit replies</li>
+      <li>cooldown consequences for repeated low-alignment behavior</li>
+      <li>optional Gemini second-pass analysis for manual Check fit and rewrite refinement</li>
+    </ul>
+    <p>
+      This system is strong enough for closed-beta learning, but it should still be treated as
+      experimental. Beta testing must measure whether it improves reply quality without frustrating
+      responders.
+    </p>
+
+    <h2>9. Trust And Moderation</h2>
+    <p>The current trust layer includes:</p>
+    <ul class="tight">
+      <li>reporting</li>
+      <li>flagged reply handling</li>
+      <li>moderation routes</li>
+      <li>block and mute relationships</li>
+      <li>reply-quality enforcement</li>
+      <li>verification and onboarding gating</li>
+    </ul>
+    <p>
+      This is acceptable for a selected closed beta. It is not yet enough for broad public launch, where
+      abuse pressure, spam, adversarial users, and scale would be materially higher.
+    </p>
+
+    <h2>10. Technical Architecture</h2>
+    <p>The current local stack is:</p>
+    <ul class="tight">
+      <li>Next.js</li>
+      <li>React</li>
+      <li>TypeScript</li>
+      <li>SQLite-backed local persistence</li>
+      <li>SMTP email delivery</li>
+      <li>Google OAuth</li>
+      <li>optional Gemini API integration</li>
+      <li>Vitest integration and domain tests</li>
+    </ul>
+    <p>
+      The next production infrastructure step is to move persistence to managed Postgres, deploy to a
+      public environment, and add logging, monitoring, and backup/restore discipline.
+    </p>
+
+    <h2>11. Testing</h2>
+    <p>The automated suite currently covers:</p>
+    <ul class="tight">
+      <li>security primitives</li>
+      <li>repository and persistence flows</li>
+      <li>response-mode alignment behavior</li>
+      <li>HTTP auth and product flows</li>
+      <li>verification, session, posting, and account behavior</li>
+    </ul>
+    <p>
+      Tests are a guardrail for closed-beta development, but they do not replace real user validation.
+      The beta must measure behavior, not just feature completeness.
+    </p>
+
+    <h2>12. Closed Beta Plan</h2>
+    <p>The recommended closed-beta shape is:</p>
+    <ul class="tight">
+      <li>start with 15 to 20 selected users</li>
+      <li>expand toward 50 if the product remains stable</li>
+      <li>prioritize founders, indie hackers, builders, technical creators, and product-minded students</li>
+      <li>watch first-session comprehension, first-post creation, reply quality, and return behavior</li>
+      <li>review reports, low-fit replies, mute/block usage, and support issues manually</li>
+    </ul>
+
+    <h2>13. Public Launch Blockers</h2>
+    <p>Ichigo should not be treated as public-launch ready until these are addressed:</p>
+    <ul class="tight">
+      <li>managed production database</li>
+      <li>observability, logging, and backups</li>
+      <li>stronger anti-spam and abuse controls</li>
+      <li>clear privacy, safety, and age-policy decisions</li>
+      <li>more robust room-level moderation</li>
+      <li>evidence of activation, reply quality, and retention from real users</li>
+    </ul>
+
+    <h2>14. Final Product Direction</h2>
+    <div class="callout verdict">
+      <p>
+        Ichigo should proceed as a focused closed-beta product for founders, builders, and selected
+        creators.
+      </p>
+      <p>
+        The long-term ambition can remain broader, but the product should not behave like a general
+        social network until the closed beta proves that context-first feedback creates repeat usage.
+      </p>
+    </div>
+  </body>
+</html>
